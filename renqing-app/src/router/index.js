@@ -1,54 +1,96 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import LoginView from '../views/LoginView.vue'
-import RegisterView from '../views/RegisterView.vue'
-import DashboardView from '../views/DashboardView.vue'
-import EventView from '../views/EventView.vue'
-import ContactView from '../views/ContactView.vue'
-import AnalysisView from '../views/AnalysisView.vue'
-import SettingsView from '../views/SettingsView.vue'
+import { useAuthStore } from '@/stores/auth.store'
 
 const routes = [
   {
+    path: '/',
+    name: 'dashboard',
+    component: () => import('@/views/DashboardView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/login',
-    name: 'Login',
-    component: LoginView
+    name: 'login',
+    component: () => import('@/views/LoginView.vue'),
+    meta: { guestOnly: true }
   },
   {
     path: '/register',
-    name: 'Register',
-    component: RegisterView
-  },
-  {
-    path: '/',
-    name: 'Dashboard',
-    component: DashboardView
+    name: 'register',
+    component: () => import('@/views/RegisterView.vue'),
+    meta: { guestOnly: true }
   },
   {
     path: '/events',
-    name: 'Events',
-    component: EventView
+    name: 'events',
+    component: () => import('@/views/EventView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/events/add',
+    name: 'add-event',
+    component: () => import('@/views/EventForm.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/events/edit/:id',
+    name: 'edit-event',
+    component: () => import('@/views/EventForm.vue'),
+    meta: { requiresAuth: true },
+    props: true
   },
   {
     path: '/contacts',
-    name: 'Contacts',
-    component: ContactView
+    name: 'contacts',
+    component: () => import('@/views/ContactView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/contacts/add',
+    name: 'add-contact',
+    component: () => import('@/views/ContactFormView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/contacts/edit/:id',
+    name: 'edit-contact',
+    component: () => import('@/views/ContactFormView.vue'),
+    meta: { requiresAuth: true },
+    props: true
   },
   {
     path: '/analysis',
-    name: 'Analysis',
-    component: AnalysisView
+    name: 'analysis',
+    component: () => import('@/views/AnalysisView.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/settings',
-    name: 'Settings',
-    component: SettingsView
+    name: 'settings',
+    component: () => import('@/views/SettingsView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/'
   }
-  // other routes
 ]
 
 const router = createRouter({
-  history: createWebHistory(process.env.BASE_URL),
+  history: createWebHistory(),
   routes
+})
+
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore()
+  
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    next({ name: 'login' })
+  } else if (to.meta.guestOnly && authStore.isAuthenticated) {
+    next({ name: 'dashboard' })
+  } else {
+    next()
+  }
 })
 
 export default router
