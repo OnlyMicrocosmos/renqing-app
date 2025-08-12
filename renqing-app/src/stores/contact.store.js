@@ -1,7 +1,6 @@
 // src/stores/contact.store.js
 import { defineStore } from 'pinia';
-import { getContacts, saveContact, deleteContact } from '@/storage/indexedDB.js';
-import analysisService from '@/storage/analysis.js';
+import { getContacts, saveContact, deleteContact } from '@/services/storage/indexedDB.js';
 
 export const useContactStore = defineStore('contact', {
   state: () => ({
@@ -127,13 +126,6 @@ export const useContactStore = defineStore('contact', {
       this.filters = { ...this.filters, ...newFilters };
     },
 
-    /**
-     * 获取联系人的人情平衡数据
-     * @returns {Promise<Array>} 联系人平衡数据
-     */
-    async getContactBalances() {
-      return await analysisService.getContactAnalysis();
-    }
   },
 
   getters: {
@@ -149,14 +141,14 @@ export const useContactStore = defineStore('contact', {
         contacts = contacts.filter(c => c.group === state.filters.group);
       }
       
-      // 搜索筛选
+      // 搜索筛选（优化版）
       if (state.filters.searchQuery) {
-        const query = state.filters.searchQuery.toLowerCase();
+        const query = state.filters.searchQuery.trim().toLowerCase();
         contacts = contacts.filter(c => 
           c.name.toLowerCase().includes(query) || 
-          c.phone?.toLowerCase().includes(query) ||
-          c.email?.toLowerCase().includes(query) ||
-          c.notes?.toLowerCase().includes(query)
+          (c.phone && c.phone.toLowerCase().includes(query)) ||
+          (c.email && c.email.toLowerCase().includes(query)) ||
+          (c.notes && c.notes.toLowerCase().includes(query))
         );
       }
       
@@ -176,15 +168,5 @@ export const useContactStore = defineStore('contact', {
       return ['所有分组', ...Array.from(groups)];
     },
 
-    /**
-     * 获取重要联系人（人情平衡值绝对值最大的前5个）
-     * @returns {Promise<Array>} 重要联系人列表
-     */
-    async importantContacts() {
-      const balances = await this.getContactBalances();
-      return balances
-        .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance))
-        .slice(0, 5);
-    }
   }
 });

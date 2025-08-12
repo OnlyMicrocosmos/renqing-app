@@ -4,8 +4,7 @@ import { useEventStore } from '@/stores/event.store'
 import dateUtil from './date.js'
 
 let reminderInterval = null
-
-let isInitialized = false;
+let isInitialized = false
 
 /**
  * 初始化提醒服务
@@ -13,63 +12,61 @@ let isInitialized = false;
 export const initReminderService = () => {
   // 确保单次初始化
   if (isInitialized) {
-    console.log('Reminder service already initialized');
-    return;
+    console.log('Reminder service already initialized')
+    return
   }
   
   // 清除现有定时器（避免重复初始化）
   if (reminderInterval) {
-    clearInterval(reminderInterval);
-    reminderInterval = null;
+    clearInterval(reminderInterval)
+    reminderInterval = null
   }
   
   // 检查浏览器通知权限
   if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-    console.warn('This browser does not support required features for notifications');
-    isInitialized = true;
-    return;
+    console.warn('This browser does not support required features for notifications')
+    isInitialized = true
+    return
   }
   
   // 请求通知权限（兼容不同浏览器实现）
   const requestPermissionAndInit = () => {
     try {
       // 立即检查一次提醒
-      checkReminders();
+      checkReminders()
       
       // 设置定时检查提醒
-      reminderInterval = setInterval(checkReminders, 60 * 1000); // 每分钟检查一次
+      reminderInterval = setInterval(checkReminders, 60 * 1000) // 每分钟检查一次
       
-      isInitialized = true;
-      console.log('Reminder service initialized successfully');
+      isInitialized = true
+      console.log('Reminder service initialized successfully')
     } catch (error) {
-      console.error('Failed to initialize reminder service:', error);
-      isInitialized = false;
+      console.error('Failed to initialize reminder service:', error)
+      isInitialized = false
     }
-  };
+  }
   
   try {
     if (Notification.permission !== 'granted') {
-      // 使用可选链操作符和Promise API处理权限请求
-      const permissionPromise = Notification?.permission ?? new Promise((resolve) => {
-        Notification.requestPermission().then(permission => resolve(permission));
-      });
-      
-      Promise.resolve(permissionPromise).then(permission => {
+      // 使用Promise方式处理权限请求
+      new Promise((resolve) => {
+        Notification.requestPermission().then(permission => resolve(permission))
+      }).then(permission => {
         if (permission !== 'granted') {
-          console.warn('Notification permission denied');
-          isInitialized = true;
-          return;
+          console.warn('Notification permission denied')
+          isInitialized = true
+          return
         }
-        requestPermissionAndInit();
-      });
-      return;
+        requestPermissionAndInit()
+      })
+      return
     } else {
-      requestPermissionAndInit();
+      requestPermissionAndInit()
     }
   } catch (error) {
-    console.error('Error requesting notification permission:', error);
-    isInitialized = true;
-    return;
+    console.error('Error requesting notification permission:', error)
+    isInitialized = true
+    return
   }
 }
 
@@ -81,6 +78,7 @@ export const stopReminderService = () => {
     clearInterval(reminderInterval)
     reminderInterval = null
   }
+  isInitialized = false
 }
 
 /**
@@ -164,42 +162,44 @@ const generateReminder = (event) => {
  */
 const checkReminders = async () => {
   try {
-    const eventStore = useEventStore();
-    const now = new Date();
+    const eventStore = useEventStore()
+    const now = new Date()
     
     // 如果事件未加载或上次加载超过1小时，重新加载
     if (eventStore.events.length === 0 || 
         !eventStore.lastLoaded || 
         (now - new Date(eventStore.lastLoaded)) > 3600000) {
-      await eventStore.loadEvents();
+      await eventStore.loadEvents()
     }
     
     // 过滤需要提醒的事件
     const pendingEvents = eventStore.events.filter(event => {
-      return !event.reminded && shouldNotify(event);
-    });
+      return !event.reminded && shouldNotify(event)
+    })
     
     // 如果没有需要提醒的事件，直接返回
     if (pendingEvents.length === 0) {
-      return;
+      return
     }
     
     // 生成并发送提醒
-    const eventsToUpdate = [];
+    const eventsToUpdate = []
     
     for (const event of pendingEvents) {
-      const reminder = generateReminder(event);
-      showReminder(reminder);
-      eventsToUpdate.push({ ...event, reminded: true });
+      const reminder = generateReminder(event)
+      showReminder(reminder)
+      eventsToUpdate.push({ ...event, reminded: true })
       
-      console.log(`Reminder sent for event: ${event.title}`);
+      console.log(`Reminder sent for event: ${event.title}`)
     }
     
     // 批量更新事件提醒状态
-    await eventStore.updateEvents(eventsToUpdate);
+    if (eventStore.updateEvents) {
+      await eventStore.updateEvents(eventsToUpdate)
+    }
     
   } catch (error) {
-    console.error('Error checking reminders:', error);
+    console.error('Error checking reminders:', error)
   }
 }
 

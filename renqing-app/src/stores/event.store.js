@@ -1,7 +1,6 @@
 // src/stores/event.store.js
 import { defineStore } from 'pinia';
-import { getEvents, saveEvent, deleteEvent } from '@/storage/indexedDB.js';
-import { calculateReminderTime } from '@/utils/reminder.js';
+import { getEvents, saveEvent, deleteEvent } from '@/services/storage/indexedDB.js';
 
 export const useEventStore = defineStore('event', {
   state: () => ({
@@ -14,7 +13,8 @@ export const useEventStore = defineStore('event', {
       searchQuery: ''
     },
     loading: false,
-    error: null
+    error: null,
+    lastLoaded: null
   }),
 
   actions: {
@@ -27,7 +27,7 @@ export const useEventStore = defineStore('event', {
       
       try {
         this.events = await getEvents();
-        this.processReminders();
+        this.lastLoaded = new Date().toISOString();
         return this.events;
       } catch (error) {
         this.error = '加载事件失败: ' + error.message;
@@ -52,7 +52,6 @@ export const useEventStore = defineStore('event', {
         });
         
         this.events.unshift(newEvent);
-        this.processReminders();
         return newEvent;
       } catch (error) {
         this.error = '创建事件失败: ' + error.message;
@@ -82,11 +81,39 @@ export const useEventStore = defineStore('event', {
         
         await saveEvent(updatedEvent);
         this.events.splice(eventIndex, 1, updatedEvent);
-        this.processReminders();
         
         return updatedEvent;
       } catch (error) {
         this.error = '更新事件失败: ' + error.message;
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    /**
+     * 批量更新事件
+     * @param {Array} events - 事件数组
+     */
+    async updateEvents(events) {
+      this.loading = true;
+      
+      try {
+        const updatedEvents = [];
+        for (const event of events) {
+          const updatedEvent = await saveEvent(event);
+          updatedEvents.push(updatedEvent);
+          
+          // 更新本地状态
+          const eventIndex = this.events.findIndex(e => e.id === event.id);
+          if (eventIndex !== -1) {
+            this.events.splice(eventIndex, 1, updatedEvent);
+          }
+        }
+        
+        return updatedEvents;
+      } catch (error) {
+        this.error = '批量更新事件失败: ' + error.message;
         throw error;
       } finally {
         this.loading = false;
