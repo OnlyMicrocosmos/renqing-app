@@ -212,6 +212,7 @@ textarea.form-control {
   margin: 1rem 0;
 }
 
+
 @media (max-width: 768px) {
   .grid-2, .grid-3 {
     grid-template-columns: 1fr;
