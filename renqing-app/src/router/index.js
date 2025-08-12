@@ -46,7 +46,7 @@ const routes = [
   {
     path: '/events/add',
     name: 'add-event',
-    component: () => import('@/events/EventForm.vue'),
+    component: () => import('@/components/events/EventForm.vue'),
     meta: { 
       requiresAuth: true,
       title: '添加事件',
@@ -56,7 +56,7 @@ const routes = [
   {
     path: '/events/edit/:id',
     name: 'edit-event',
-    component: () => import('@/events/EventForm.vue'),
+    component: () => import('@/components/events/EventForm.vue'),
     meta: { 
       requiresAuth: true,
       title: '编辑事件',
@@ -77,7 +77,7 @@ const routes = [
   {
     path: '/contacts/add',
     name: 'add-contact',
-    component: () => import('@/contacts/ContactForm.vue'),
+    component: () => import('@/components/contact/ContactForm.vue'),
     meta: { 
       requiresAuth: true,
       title: '添加联系人',
@@ -87,7 +87,7 @@ const routes = [
   {
     path: '/contacts/edit/:id',
     name: 'edit-contact',
-    component: () => import('@/contacts/ContactForm.vue'),
+    component: () => import('@/components/contact/ContactForm.vue'),
     meta: { 
       requiresAuth: true,
       title: '编辑联系人',
