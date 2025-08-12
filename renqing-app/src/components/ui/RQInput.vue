@@ -1,126 +1,108 @@
 <template>
-  <div class="form-group">
-    <label v-if="label" :for="id">{{ label }}</label>
-    <div class="input-container" :class="{ 'has-icon': $slots.prefix || $slots.suffix }">
-      <div v-if="$slots.prefix" class="input-prefix">
-        <slot name="prefix"></slot>
-      </div>
-      <input
-        :id="id"
-        :type="type"
-        :value="modelValue"
-        :placeholder="placeholder"
-        :disabled="disabled"
-        :readonly="readonly"
-        @input="$emit('update:modelValue', $event.target.value)"
-        class="form-control"
-        :class="{ 'has-error': error }"
-      />
-      <div v-if="$slots.suffix" class="input-suffix">
-        <slot name="suffix"></slot>
-      </div>
-    </div>
-    <div v-if="error" class="error-message">{{ error }}</div>
-    <div v-if="hint" class="hint">{{ hint }}</div>
-  </div>
+  <input
+    class="rq-input"
+    :class="[
+      size ? `rq-input--${size}` : '',
+      {
+        'is-disabled': disabled
+      }
+    ]"
+    :disabled="disabled"
+    :placeholder="placeholder"
+    :value="modelValue"
+    @input="handleInput"
+    @focus="handleFocus"
+    @blur="handleBlur"
+  />
 </template>
 
-<script setup>
-import { defineProps, defineEmits, computed } from 'vue'
-
-const props = defineProps({
-  modelValue: [String, Number],
-  label: String,
-  id: String,
-  type: {
-    type: String,
-    default: 'text'
+<script>
+export default {
+  name: 'RQInput',
+  props: {
+    modelValue: {
+      type: [String, Number],
+      default: ''
+    },
+    placeholder: {
+      type: String,
+      default: ''
+    },
+    size: {
+      type: String,
+      default: 'default',
+      validator: function (value) {
+        return ['default', 'small', 'large'].includes(value)
+      }
+    },
+    disabled: {
+      type: Boolean,
+      default: false
+    }
   },
-  placeholder: String,
-  error: String,
-  hint: String,
-  disabled: Boolean,
-  readonly: Boolean
-})
-
-defineEmits(['update:modelValue'])
-
-// 如果没有提供id，自动生成一个
-const inputId = computed(() => props.id || `input-${Math.random().toString(36).substr(2, 9)}`)
+  emits: ['update:modelValue', 'input', 'focus', 'blur'],
+  methods: {
+    handleInput(event) {
+      if (!this.disabled) {
+        const value = event.target.value;
+        this.$emit('update:modelValue', value);
+        this.$emit('input', value);
+      }
+    },
+    
+    handleFocus(event) {
+      if (!this.disabled) {
+        this.$emit('focus', event);
+      }
+    },
+    
+    handleBlur(event) {
+      if (!this.disabled) {
+        this.$emit('blur', event);
+      }
+    }
+  }
+}
 </script>
 
 <style scoped>
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: var(--dark);
-}
-
-.input-container {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.input-container.has-icon .form-control {
-  padding-left: 2.5rem;
-}
-
-.input-prefix, .input-suffix {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--gray);
-  z-index: 10;
-}
-
-.input-prefix {
-  left: 1rem;
-}
-
-.input-suffix {
-  right: 1rem;
-}
-
-.form-control {
+.rq-input {
+  display: inline-block;
   width: 100%;
-  padding: 0.875rem 1rem;
-  border: 1px solid var(--light-gray);
-  border-radius: var(--border-radius);
-  font-size: 1rem;
-  transition: var(--transition);
-  background-color: white;
+  padding: var(--spacer-sm) var(--spacer-md);
+  font-size: 14px;
+  line-height: 1.5;
+  border-radius: var(--border-radius-base);
+  border: 1px solid var(--border-color-base);
+  background-color: var(--white-color);
+  color: var(--text-color-primary);
+  box-sizing: border-box;
+  transition: all 0.3s;
 }
 
-.form-control:focus {
-  border-color: var(--primary);
+.rq-input:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.2);
+  border-color: var(--primary-color);
 }
 
-.form-control.has-error {
-  border-color: var(--danger);
+.rq-input::placeholder {
+  color: var(--text-color-placeholder);
 }
 
-.form-control.has-error:focus {
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+.rq-input.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  background-color: var(--disabled-bg-color);
 }
 
-.error-message {
-  margin-top: 0.5rem;
-  color: var(--danger);
-  font-size: 0.875rem;
+/* 输入框尺寸 */
+.rq-input--small {
+  padding: var(--spacer-xs) var(--spacer-sm);
+  font-size: 12px;
 }
 
-.hint {
-  margin-top: 0.5rem;
-  color: var(--gray);
-  font-size: 0.875rem;
+.rq-input--large {
+  padding: var(--spacer-md) var(--spacer-lg);
+  font-size: 16px;
 }
 </style>
