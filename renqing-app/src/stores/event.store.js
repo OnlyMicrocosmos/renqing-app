@@ -1,161 +1,204 @@
-import { defineStore } from 'pinia'
-import { fetchEvents, createEvent, updateEvent, deleteEvent } from '@/services/api/event'
-import { saveToDB, getFromDB } from '@/services/storage/indexedDB'
-import { useAuthStore } from '@/stores/auth.store'
+// src/stores/event.store.js
+import { defineStore } from 'pinia';
+import { getEvents, saveEvent, deleteEvent } from '@/storage/indexedDB.js';
+import { calculateReminderTime } from '@/utils/reminder.js';
 
 export const useEventStore = defineStore('event', {
   state: () => ({
     events: [],
+    selectedEvent: null,
+    filters: {
+      type: 'all', // 'given'|'received'|'all'
+      category: 'all',
+      dateRange: 'month',
+      searchQuery: ''
+    },
     loading: false,
-    error: null,
-    currentEvent: null
+    error: null
   }),
+
   actions: {
+    /**
+     * 从数据库加载事件
+     */
     async loadEvents() {
+      this.loading = true;
+      this.error = null;
+      
       try {
-        this.loading = true
-        this.error = null
-        
-        const authStore = useAuthStore()
-        if (!authStore.isAuthenticated) return
-        
-        // 尝试从本地存储加载缓存数据
-        try {
-          const cachedEvents = await getFromDB('events')
-          if (cachedEvents && cachedEvents.length > 0) {
-            this.events = cachedEvents
-          }
-        } catch (cacheError) {
-          console.warn('Failed to load events from cache:', cacheError)
-        }
-        
-        // 从服务器获取最新数据
-        const events = await fetchEvents()
-        this.events = events
-        
-        // 更新本地缓存
-        try {
-          await saveToDB('events', events)
-        } catch (saveError) {
-          console.warn('Failed to save events to cache:', saveError)
-        }
+        this.events = await getEvents();
+        this.processReminders();
+        return this.events;
       } catch (error) {
-        this.error = error.message || '加载事件失败'
+        this.error = '加载事件失败: ' + error.message;
+        throw error;
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     },
-    
-    async addEvent(eventData) {
+
+    /**
+     * 创建新事件
+     * @param {Object} eventData - 事件数据
+     */
+    async createEvent(eventData) {
+      this.loading = true;
+      
       try {
-        this.loading = true
-        this.error = null
+        const newEvent = await saveEvent({
+          ...eventData,
+          id: Date.now().toString(), // 生成唯一ID
+          createdAt: new Date().toISOString()
+        });
         
-        const newEvent = await createEvent(eventData)
-        this.events.push(newEvent)
-        
-        // 更新本地缓存
-        try {
-          await saveToDB('events', this.events)
-        } catch (saveError) {
-          console.warn('Failed to save events to cache:', saveError)
-        }
-        
-        return newEvent
+        this.events.unshift(newEvent);
+        this.processReminders();
+        return newEvent;
       } catch (error) {
-        this.error = error.message || '添加事件失败'
-        return null
+        this.error = '创建事件失败: ' + error.message;
+        throw error;
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     },
-    
-    async updateEvent(eventId, eventData) {
+
+    /**
+     * 更新事件
+     * @param {string} id - 事件ID
+     * @param {Object} updates - 更新数据
+     */
+    async updateEvent(id, updates) {
+      this.loading = true;
+      
       try {
-        this.loading = true
-        this.error = null
+        const eventIndex = this.events.findIndex(e => e.id === id);
+        if (eventIndex === -1) throw new Error('事件未找到');
         
-        const updatedEvent = await updateEvent(eventId, eventData)
-        const index = this.events.findIndex(e => e.id === eventId)
-        if (index !== -1) {
-          this.events[index] = updatedEvent
-        }
+        const updatedEvent = { 
+          ...this.events[eventIndex], 
+          ...updates,
+          updatedAt: new Date().toISOString()
+        };
         
-        // 更新本地缓存
-        try {
-          await saveToDB('events', this.events)
-        } catch (saveError) {
-          console.warn('Failed to save events to cache:', saveError)
-        }
+        await saveEvent(updatedEvent);
+        this.events.splice(eventIndex, 1, updatedEvent);
+        this.processReminders();
         
-        return updatedEvent
+        return updatedEvent;
       } catch (error) {
-        this.error = error.message || '更新事件失败'
-        return null
+        this.error = '更新事件失败: ' + error.message;
+        throw error;
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     },
-    
-    async deleteEvent(eventId) {
+
+    /**
+     * 删除事件
+     * @param {string} id - 事件ID
+     */
+    async deleteEvent(id) {
+      this.loading = true;
+      
       try {
-        this.loading = true
-        this.error = null
+        await deleteEvent(id);
+        this.events = this.events.filter(event => event.id !== id);
         
-        await deleteEvent(eventId)
-        this.events = this.events.filter(e => e.id !== eventId)
-        
-        // 更新本地缓存
-        try {
-          await saveToDB('events', this.events)
-        } catch (saveError) {
-          console.warn('Failed to save events to cache:', saveError)
+        if (this.selectedEvent?.id === id) {
+          this.selectedEvent = null;
         }
-        
-        return true
       } catch (error) {
-        this.error = error.message || '删除事件失败'
-        return false
+        this.error = '删除事件失败: ' + error.message;
+        throw error;
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     },
-    
-    setCurrentEvent(event) {
-      this.currentEvent = event
+
+    /**
+     * 选择当前操作的事件
+     * @param {Object|null} event - 事件对象
+     */
+    selectEvent(event) {
+      this.selectedEvent = event;
     },
-    
-    clearCurrentEvent() {
-      this.currentEvent = null
-    }
+
+    /**
+     * 更新筛选条件
+     * @param {Object} newFilters - 新筛选条件
+     */
+    setFilters(newFilters) {
+      this.filters = { ...this.filters, ...newFilters };
+    },
+
   },
+
   getters: {
-    getEventsByContact: (state) => (contactId) => {
-      return state.events.filter(event => event.contactId === contactId)
+    /**
+     * 获取筛选后的事件
+     * @returns {Array} 筛选后的事件列表
+     */
+    filteredEvents: (state) => {
+      let events = [...state.events];
+      
+      // 类型筛选
+      if (state.filters.type !== 'all') {
+        events = events.filter(e => e.type === state.filters.type);
+      }
+      
+      // 类别筛选
+      if (state.filters.category !== 'all') {
+        events = events.filter(e => e.category === state.filters.category);
+      }
+      
+      // 搜索筛选
+      if (state.filters.searchQuery) {
+        const query = state.filters.searchQuery.toLowerCase();
+        events = events.filter(e => 
+          e.title.toLowerCase().includes(query) || 
+          e.description?.toLowerCase().includes(query)
+        );
+      }
+      
+      // 日期范围筛选
+      const now = new Date();
+      switch (state.filters.dateRange) {
+        case 'week':
+          const oneWeekAgo = new Date(now);
+          oneWeekAgo.setDate(now.getDate() - 7);
+          events = events.filter(e => new Date(e.date) >= oneWeekAgo);
+          break;
+        case 'month':
+          const oneMonthAgo = new Date(now);
+          oneMonthAgo.setMonth(now.getMonth() - 1);
+          events = events.filter(e => new Date(e.date) >= oneMonthAgo);
+          break;
+        case 'year':
+          const oneYearAgo = new Date(now);
+          oneYearAgo.setFullYear(now.getFullYear() - 1);
+          events = events.filter(e => new Date(e.date) >= oneYearAgo);
+          break;
+      }
+      
+      // 按日期倒序排序
+      return events.sort((a, b) => new Date(b.date) - new Date(a.date));
     },
-    
-    recentEvents: (state) => {
-      return [...state.events]
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .slice(0, 5)
-    },
-    
-    totalBalance: (state) => {
-      return state.events.reduce((total, event) => {
-        return event.type === 'received' ? total - event.value : total + event.value
-      }, 0)
-    },
-    
-    totalGiven: (state) => {
+
+    /**
+     * 获取即将到来事件
+     * @returns {Array} 即将到来的事件
+     */
+    upcomingEvents: (state) => {
+      const now = new Date();
+      const inOneWeek = new Date();
+      inOneWeek.setDate(now.getDate() + 7);
+      
       return state.events
-        .filter(e => e.type === 'given')
-        .reduce((sum, e) => sum + e.value, 0)
-    },
-    
-    totalReceived: (state) => {
-      return state.events
-        .filter(e => e.type === 'received')
-        .reduce((sum, e) => sum + e.value, 0)
+        .filter(event => {
+          const eventDate = new Date(event.date);
+          return eventDate > now && eventDate <= inOneWeek;
+        })
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
     }
   }
-})
+});
