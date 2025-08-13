@@ -13,12 +13,16 @@
         </div>
       </div>
     </div>
-    <div ref="chartEl" class="chart-container"></div>
+    <div v-if="hasData" ref="chartEl" class="chart-container"></div>
+    <div v-else class="chart-empty">
+      <p>暂无数据</p>
+      <p class="chart-empty-subtitle">还没有人情往来记录</p>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import * as echarts from 'echarts'
 
 const props = defineProps({
@@ -35,8 +39,14 @@ const props = defineProps({
 const chartEl = ref(null)
 let chartInstance = null
 
+// 计算是否有数据用于展示
+const hasData = computed(() => {
+  return props.data.given > 0 || props.data.received > 0
+})
+
+// 初始化图表
 const initChart = () => {
-  if (!chartEl.value) return
+  if (!chartEl.value || !hasData.value) return
   
   chartInstance = echarts.init(chartEl.value)
   
@@ -91,22 +101,54 @@ const initChart = () => {
   chartInstance.setOption(option)
 }
 
+// 更新图表数据
+const updateChart = () => {
+  if (!chartInstance || !hasData.value) return
+  
+  chartInstance.setOption({
+    series: [{
+      data: [
+        { value: props.data.given, name: '送礼' },
+        { value: props.data.received, name: '收礼' }
+      ]
+    }]
+  })
+}
+
+// 监听数据变化
 watch(() => props.data, () => {
-  if (chartInstance) {
-    chartInstance.setOption({
-      series: [{
-        data: [
-          { value: props.data.given, name: '送礼' },
-          { value: props.data.received, name: '收礼' }
-        ]
-      }]
-    })
+  if (hasData.value) {
+    if (chartInstance) {
+      updateChart()
+    } else {
+      initChart()
+    }
+  } else if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
   }
 }, { deep: true })
 
+// 监听窗口大小变化
+const handleResize = () => {
+  if (chartInstance) {
+    chartInstance.resize()
+  }
+}
+
 onMounted(() => {
-  initChart()
-  window.addEventListener('resize', () => chartInstance?.resize())
+  if (hasData.value) {
+    initChart()
+  }
+  window.addEventListener('resize', handleResize)
+})
+
+// 组件卸载前清理
+onUnmounted(() => {
+  if (chartInstance) {
+    chartInstance.dispose()
+  }
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
@@ -166,5 +208,39 @@ onMounted(() => {
 .chart-container {
   flex: 1;
   min-height: 300px;
+}
+
+.chart-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: var(--gray);
+}
+
+.chart-empty p {
+  margin: 0;
+}
+
+.chart-empty-subtitle {
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .legend {
+    align-self: flex-end;
+  }
+  
+  .balance-chart {
+    padding: 1rem;
+  }
 }
 </style>

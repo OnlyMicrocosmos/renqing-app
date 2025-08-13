@@ -11,12 +11,16 @@
         </select>
       </div>
     </div>
-    <div ref="chartEl" class="chart-container"></div>
+    <div v-if="hasData" ref="chartEl" class="chart-container"></div>
+    <div v-else class="chart-empty">
+      <p>暂无数据</p>
+      <p class="chart-empty-subtitle">还没有人情往来记录</p>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
 import * as echarts from 'echarts'
 import { format } from 'date-fns'
 
@@ -32,9 +36,59 @@ const chartEl = ref(null)
 let chartInstance = null
 const timeRange = ref('30') // 默认显示最近30天
 
+// 计算是否有数据用于展示
+const hasData = computed(() => {
+  return filteredEvents.value.length > 0
+})
+
+// 根据时间范围过滤事件
+const filteredEvents = computed(() => {
+  const now = new Date()
+  let startDate = new Date()
+  
+  if (props.events.length === 0) return []
+  
+  switch (timeRange.value) {
+    case '7':
+      startDate.setDate(now.getDate() - 7)
+      break
+    case '30':
+      startDate.setDate(now.getDate() - 30)
+      break
+    case '90':
+      startDate.setDate(now.getDate() - 90)
+      break
+    case 'all':
+      // 全部时间，不需要过滤
+      return [...props.events]
+    default:
+      startDate.setDate(now.getDate() - 30)
+  }
+  
+  return props.events.filter(event => {
+    const eventDate = new Date(event.date)
+    return eventDate >= startDate
+  })
+})
+
+// 准备时间线数据
+const prepareTimelineData = (events) => {
+  return events.map(event => {
+    return {
+      name: event.description,
+      value: [
+        event.date, // X轴 - 时间
+        event.value, // Y轴 - 金额
+        event.value, // 用于确定点的大小
+        event // 原始事件数据
+      ]
+    }
+  })
+}
+
 // 初始化图表
 const initChart = () => {
-  if (!chartEl.value) return
+  if (!chartEl.value || !hasData.value) return
   
   // 销毁现有实例
   if (chartInstance) {
@@ -45,10 +99,7 @@ const initChart = () => {
   chartInstance = echarts.init(chartEl.value)
   
   // 获取过滤后的事件数据
-  const filteredEvents = filterEventsByTimeRange()
-  
-  // 准备图表数据
-  const timelineData = prepareTimelineData(filteredEvents)
+  const timelineData = prepareTimelineData(filteredEvents.value)
   
   // 配置图表选项
   const option = {
@@ -166,49 +217,6 @@ const initChart = () => {
   })
 }
 
-// 根据时间范围过滤事件
-const filterEventsByTimeRange = () => {
-  const now = new Date()
-  let startDate = new Date()
-  
-  switch (timeRange.value) {
-    case '7':
-      startDate.setDate(now.getDate() - 7)
-      break
-    case '30':
-      startDate.setDate(now.getDate() - 30)
-      break
-    case '90':
-      startDate.setDate(now.getDate() - 90)
-      break
-    case 'all':
-      // 全部时间，不需要过滤
-      return [...props.events]
-    default:
-      startDate.setDate(now.getDate() - 30)
-  }
-  
-  return props.events.filter(event => {
-    const eventDate = new Date(event.date)
-    return eventDate >= startDate
-  })
-}
-
-// 准备时间线数据
-const prepareTimelineData = (events) => {
-  return events.map(event => {
-    return {
-      name: event.description,
-      value: [
-        event.date, // X轴 - 时间
-        event.value, // Y轴 - 金额
-        event.value, // 用于确定点的大小
-        event // 原始事件数据
-      ]
-    }
-  })
-}
-
 // 响应式调整图表大小
 const resizeChart = () => {
   if (chartInstance) {
@@ -218,17 +226,29 @@ const resizeChart = () => {
 
 // 监听事件数据变化
 watch(() => props.events, () => {
-  initChart()
+  if (hasData.value) {
+    initChart()
+  } else if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
 }, { deep: true })
 
 // 监听时间范围变化
 watch(timeRange, () => {
-  initChart()
+  if (hasData.value) {
+    initChart()
+  } else if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
 })
 
 // 生命周期钩子
 onMounted(() => {
-  initChart()
+  if (hasData.value) {
+    initChart()
+  }
   window.addEventListener('resize', resizeChart)
 })
 
@@ -290,5 +310,39 @@ onBeforeUnmount(() => {
 .chart-container {
   flex: 1;
   min-height: 300px;
+}
+
+.chart-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: var(--gray);
+}
+
+.chart-empty p {
+  margin: 0;
+}
+
+.chart-empty-subtitle {
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .chart-actions {
+    align-self: flex-end;
+  }
+  
+  .timeline-chart {
+    padding: 1rem;
+  }
 }
 </style>
