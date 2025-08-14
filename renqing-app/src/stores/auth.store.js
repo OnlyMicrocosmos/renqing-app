@@ -24,7 +24,21 @@ export const useAuthStore = defineStore('auth', {
       this.error = null;
       
       try {
-        const response = await authService.login(credentials);
+        // 构造正确的登录参数
+        const loginCredentials = {
+          password: credentials.password
+        };
+        
+        // 判断是用户名还是邮箱
+        if (credentials.username) {
+          if (credentials.username.includes('@')) {
+            loginCredentials.email = credentials.username;
+          } else {
+            loginCredentials.username = credentials.username;
+          }
+        }
+        
+        const response = await authService.login(loginCredentials);
         
         this.user = response.user;
         this.accessToken = response.accessToken;
@@ -105,7 +119,6 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = null;
       this.refreshToken = null;
       this.isAuthenticated = false;
-      this.error = null;
       
       // 清除本地存储
       localStorage.removeItem('user');
@@ -114,78 +127,27 @@ export const useAuthStore = defineStore('auth', {
     },
 
     /**
-     * 更新用户信息
-     * @param {Object} updatedUser - 更新的用户数据
+     * 检查认证状态
      */
-    async updateUser(updatedUser) {
-      try {
-        // 调用API更新服务器数据
-        const response = await authService.updateUser(this.user.id, updatedUser);
-        
-        // 更新本地状态
-        this.user = { ...this.user, ...response.user };
-        localStorage.setItem('user', JSON.stringify(this.user));
-        
-        return response;
-      } catch (error) {
-        this.error = error.response?.data?.message || error.message || '更新用户信息失败';
-        throw error;
-      }
-    },
-    
-    /**
-     * 从本地存储初始化状态
-     */
-    initFromStorage() {
-      // 从localStorage加载状态
-      const user = JSON.parse(localStorage.getItem('user'));
-      const accessToken = localStorage.getItem('accessToken');
-      const refreshToken = localStorage.getItem('refreshToken');
-      
-      if (user && accessToken) {
-        this.user = user;
-        this.accessToken = accessToken;
-        this.refreshToken = refreshToken;
-        this.isAuthenticated = true;
-      } else {
-        this.logout();
-      }
-    },
-    
-    /**
-     * 重置错误状态
-     */
-    resetError() {
-      this.error = null;
+    checkAuthStatus() {
+      return this.isAuthenticated;
     }
   },
 
   getters: {
     /**
-     * 获取当前用户ID
-     * @returns {string|null} 用户ID
+     * 获取当前用户信息
      */
-    userId: (state) => state.user?.id || null,
-    
+    currentUser: (state) => state.user,
+
     /**
-     * 获取用户头像
-     * @returns {string} 头像URL
+     * 检查用户是否已认证
      */
-    avatar: (state) => state.user?.avatar || '/src/assets/images/default-avatar.png',
-    
+    isAuth: (state) => state.isAuthenticated,
+
     /**
-     * 获取用户全名
-     * @returns {string} 用户全名
+     * 获取认证错误信息
      */
-    fullName: (state) => {
-      if (!state.user) return '';
-      return `${state.user.firstName || ''} ${state.user.lastName || ''}`.trim() || state.user.username;
-    },
-    
-    /**
-     * 获取用户角色（用于权限控制）
-     * @returns {string} 用户角色
-     */
-    role: (state) => state.user?.role || 'user'
+    authError: (state) => state.error
   }
 });
