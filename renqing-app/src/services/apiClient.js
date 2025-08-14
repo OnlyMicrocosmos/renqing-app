@@ -114,7 +114,7 @@ function generateRequestId() {
 }
 
 // 封装常用HTTP方法
-export default {
+const apiClientInstance = {
   /**
    * 发送GET请求
    * @param {string} url 
@@ -211,3 +211,7 @@ export default {
     console.warn(`取消请求 ${requestId} - 需要实现具体逻辑`)
   }
 }
+
+// 正确导出 apiClient
+export { apiClientInstance as apiClient }
+export default apiClientInstance

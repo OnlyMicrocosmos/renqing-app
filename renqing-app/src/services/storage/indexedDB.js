@@ -541,6 +541,32 @@ export const cleanupSyncQueue = async (days = 7) => {
   }
 }
 
+// 添加事件相关的导出函数
+export const getEvents = async () => {
+  return await getFromDB('events');
+};
+
+export const saveEvent = async (event) => {
+  return await putItem('events', event);
+};
+
+export const deleteEvent = async (eventId) => {
+  return await deleteItem('events', eventId);
+};
+
+// 添加联系人相关的导出函数
+export const getContacts = async () => {
+  return await getFromDB('contacts');
+};
+
+export const saveContact = async (contact) => {
+  return await putItem('contacts', contact);
+};
+
+export const deleteContact = async (contactId) => {
+  return await deleteItem('contacts', contactId);
+};
+
 /**
  * 导出数据库工具函数
  */
@@ -558,5 +584,13 @@ export default {
   addToSyncQueue,
   getPendingSyncItems,
   updateSyncItemStatus,
-  cleanupSyncQueue
+  cleanupSyncQueue,
+  // 事件相关函数
+  getEvents,
+  saveEvent,
+  deleteEvent,
+  // 联系人相关函数
+  getContacts,
+  saveContact,
+  deleteContact
 }

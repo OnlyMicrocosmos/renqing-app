@@ -1,5 +1,5 @@
 // src/services/api/auth.js
-import { apiClient } from '../apiClient'
+import apiClient from '../apiClient'
 import { saveToDB, getFromDB } from '../storage/indexedDB'
 import { validateEmail, validatePassword } from '@/utils/validator'
 
@@ -240,3 +240,15 @@ export const changePassword = async (passwordData) => {
     throw new Error(error.message || '修改密码失败')
   }
 }
+
+// 创建 authService 对象并默认导出
+const authService = {
+  register,
+  login,
+  logout,
+  getCurrentUser,
+  updateProfile,
+  changePassword
+};
+
+export default authService;

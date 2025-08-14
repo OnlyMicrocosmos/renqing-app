@@ -4,7 +4,7 @@
  * 表单验证工具
  * 提供通用验证规则和错误处理
  */
-export default {
+const validator = {
   /**
    * 验证规则集合
    */
@@ -183,3 +183,15 @@ export default {
     return Object.values(errors)[0] || '';
   }
 };
+
+// 导出验证函数
+export const validateEmail = (email) => {
+  return validator.rules.email(email) === true;
+};
+
+export const validatePassword = (password) => {
+  return validator.rules.required(password) === true && 
+         validator.rules.minLength(6)(password) === true;
+};
+
+export default validator;

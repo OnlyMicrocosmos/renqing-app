@@ -107,7 +107,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { useContactStore } from '@/stores/contact.store'
-import Button from '@/components/ui/Button.vue'
+import Button from '@/components/ui/RQButton.vue'
 import { format } from 'date-fns'
 
 const props = defineProps({

@@ -4,7 +4,7 @@
  * 日期处理工具
  * 提供日期格式化、计算和比较功能
  */
-export default {
+const dateUtils = {
   /**
    * 格式化日期
    * @param {Date|string} date - 日期对象或字符串
@@ -151,3 +151,9 @@ export default {
     return d >= new Date(start) && d <= new Date(end);
   }
 };
+
+// 导出单独的函数
+export const formatDate = (date, format) => dateUtils.format(date, format);
+export const relativeDate = (date) => dateUtils.fromNow(date);
+
+export default dateUtils;

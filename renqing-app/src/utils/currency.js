@@ -4,7 +4,7 @@
  * 货币格式化工具
  * 支持多种货币格式和自定义选项
  */
-export default {
+const currencyUtils = {
   /**
    * 格式化货币金额
    * @param {number|string} value - 金额数值
@@ -75,3 +75,8 @@ export default {
     });
   }
 };
+
+// 导出单独的函数
+export const formatCurrency = (value, options) => currencyUtils.format(value, options);
+
+export default currencyUtils;
