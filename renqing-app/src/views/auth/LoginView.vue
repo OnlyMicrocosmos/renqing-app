@@ -43,6 +43,10 @@
           <a href="#" class="forgot-password">忘记密码？</a>
         </div>
 
+        <div v-if="errorMessage" class="error-message">
+          {{ errorMessage }}
+        </div>
+
         <button 
           type="submit" 
           class="btn btn-primary btn-block"
@@ -61,32 +65,45 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth.store'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const loading = ref(false)
 const rememberMe = ref(false)
+const errorMessage = ref('')
 
 const credentials = reactive({
   username: '',
   password: ''
 })
 
+onMounted(() => {
+  // 检查是否有记住的用户名
+  const rememberedUsername = localStorage.getItem('remembered-username')
+  if (rememberedUsername) {
+    credentials.username = rememberedUsername
+    rememberMe.value = true
+  }
+})
+
 const handleLogin = async () => {
   if (!credentials.username || !credentials.password) {
-    alert('请输入用户名和密码')
+    errorMessage.value = '请输入用户名和密码'
     return
   }
 
   loading.value = true
+  errorMessage.value = ''
   
   try {
-    // 模拟登录过程
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // 模拟登录成功
-    localStorage.setItem('user-token', 'fake-jwt-token')
+    // 调用认证存储的登录方法
+    await authStore.login({
+      username: credentials.username,
+      password: credentials.password
+    })
     
     // 如果选择了记住我，保存用户名
     if (rememberMe.value) {
@@ -98,7 +115,7 @@ const handleLogin = async () => {
     // 跳转到仪表盘
     router.push('/dashboard')
   } catch (error) {
-    alert('登录失败: ' + (error.message || '未知错误'))
+    errorMessage.value = '登录失败: ' + (error.message || '用户名或密码错误')
   } finally {
     loading.value = false
   }
@@ -112,16 +129,22 @@ const handleLogin = async () => {
   align-items: center;
   min-height: 100vh;
   padding: 1rem;
-  background-color: #f8f9fa;
+  background: linear-gradient(135deg, #4361ee 0%, #3f37c9 100%);
 }
 
 .auth-container {
   width: 100%;
   max-width: 400px;
   background: white;
-  border-radius: var(--border-radius);
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
-  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  padding: 2.5rem;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .auth-header {
@@ -132,13 +155,14 @@ const handleLogin = async () => {
 .auth-header h1 {
   margin-bottom: 0.5rem;
   font-size: 1.75rem;
-  font-weight: 600;
-  color: var(--dark);
+  font-weight: 700;
+  color: #2b2d42;
 }
 
 .auth-header p {
-  color: var(--gray);
+  color: #6c757d;
   margin: 0;
+  font-size: 1rem;
 }
 
 .auth-form {
@@ -153,29 +177,31 @@ const handleLogin = async () => {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
-  color: var(--dark);
+  color: #2b2d42;
+  font-size: 0.95rem;
 }
 
 .form-control {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--light-gray);
-  border-radius: var(--border-radius);
+  padding: 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   font-size: 1rem;
   outline: none;
-  transition: var(--transition);
+  transition: all 0.3s ease;
   box-sizing: border-box;
 }
 
 .form-control:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.2);
+  border-color: #4361ee;
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
 }
 
 .checkbox-group {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 1.8rem;
 }
 
 .checkbox-label {
@@ -184,6 +210,7 @@ const handleLogin = async () => {
   cursor: pointer;
   position: relative;
   user-select: none;
+  font-size: 0.9rem;
 }
 
 .checkbox-label input {
@@ -195,16 +222,19 @@ const handleLogin = async () => {
 }
 
 .checkmark {
-  height: 16px;
-  width: 16px;
-  background-color: #eee;
-  border-radius: 3px;
+  height: 18px;
+  width: 18px;
+  background-color: #f1f5f9;
+  border-radius: 4px;
   margin-right: 0.5rem;
   position: relative;
+  border: 1px solid #cbd5e1;
+  transition: all 0.2s ease;
 }
 
 .checkbox-label input:checked ~ .checkmark {
-  background-color: var(--primary);
+  background-color: #4361ee;
+  border-color: #4361ee;
 }
 
 .checkmark:after {
@@ -218,45 +248,76 @@ const handleLogin = async () => {
 }
 
 .checkbox-label .checkmark:after {
-  left: 5px;
+  left: 6px;
   top: 2px;
-  width: 4px;
-  height: 8px;
+  width: 5px;
+  height: 10px;
   border: solid white;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
 
 .forgot-password {
-  color: var(--primary);
+  color: #4361ee;
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
 }
 
 .forgot-password:hover {
   text-decoration: underline;
+  color: #3a56d4;
 }
 
 .btn-block {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.85rem;
   font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  background: #4361ee;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.btn:disabled {
-  opacity: 0.6;
+.btn-block:hover {
+  background: #3a56d4;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(67, 97, 238, 0.3);
+}
+
+.btn-block:disabled {
+  opacity: 0.7;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.error-message {
+  background: #fff5f5;
+  color: #e53e3e;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1.2rem;
+  font-size: 0.9rem;
+  border-left: 3px solid #e53e3e;
 }
 
 .auth-footer {
   text-align: center;
-  color: var(--gray);
+  color: #6c757d;
+  font-size: 0.95rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
 }
 
 .auth-footer a {
-  color: var(--primary);
+  color: #4361ee;
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 600;
+  transition: all 0.2s ease;
 }
 
 .auth-footer a:hover {
@@ -265,7 +326,7 @@ const handleLogin = async () => {
 
 @media (max-width: 576px) {
   .auth-container {
-    padding: 1.5rem;
+    padding: 1.8rem;
   }
   
   .auth-header h1 {

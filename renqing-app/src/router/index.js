@@ -1,4 +1,3 @@
-// src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -126,7 +125,6 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
   scrollBehavior(to, from, savedPosition) {
-    // 返回顶部或保存的位置
     return savedPosition || { top: 0 }
   }
 })
@@ -135,27 +133,40 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   
+  // 如果认证状态未初始化，尝试初始化
+  if (!authStore.isInitialized) {
+    try {
+      await authStore.initFromStorage()
+    } catch (error) {
+      console.error('Failed to initialize auth store in router guard:', error)
+    }
+  }
+  
   // 检查路由是否需要认证
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    // 重定向到登录页，并携带原路径
-    next({ 
-      name: 'login',
-      query: { redirect: to.fullPath } 
-    })
+  if (to.meta.requiresAuth) {
+    if (authStore.isAuthenticated) {
+      // 检查令牌是否需要刷新
+      if (authStore.tokenNeedsRefresh) {
+        try {
+          await authStore.refreshAccessToken()
+          next()
+        } catch (error) {
+          authStore.logout()
+          next({ name: 'login' })
+        }
+      } else {
+        next()
+      }
+    } else {
+      next({ 
+        name: 'login',
+        query: { redirect: to.fullPath } 
+      })
+    }
   } 
   // 检查是否仅允许未登录用户访问
   else if (to.meta.guestOnly && authStore.isAuthenticated) {
     next({ name: 'dashboard' })
-  } 
-  // 尝试刷新令牌（如果接近过期）
-  else if (authStore.isAuthenticated && authStore.tokenNeedsRefresh) {
-    try {
-      await authStore.refreshToken()
-      next()
-    } catch (error) {
-      authStore.logout()
-      next({ name: 'login' })
-    }
   } 
   // 正常导航
   else {
@@ -167,8 +178,6 @@ router.beforeEach(async (to, from, next) => {
 router.afterEach((to) => {
   const appName = '人情往来管理系统'
   document.title = to.meta.title ? `${to.meta.title} | ${appName}` : appName
-  
-  // 滚动到顶部
   window.scrollTo(0, 0)
 })
 

@@ -11,6 +11,18 @@ export default defineConfig({
   },
   server: {
     port: 3001,
-    open: true
+    open: true,
+    // 添加以下关键配置
+    hmr: {
+      protocol: 'ws',
+      host: 'localhost'
+    },
+    middlewareMode: false
+  },
+  // 添加根目录显式声明
+  root: resolve(__dirname, './'),
+  // 添加优化依赖配置
+  optimizeDeps: {
+    include: ['vue', 'vue-router']
   }
 })

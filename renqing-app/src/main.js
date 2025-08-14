@@ -1,4 +1,3 @@
-// src/main.js
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
@@ -7,7 +6,7 @@ import router from './router'
 // 导入全局样式
 import '@/assets/styles/main.css'
 
-// 立即创建 Vue 应用实例并挂载，避免被异步操作阻塞
+// 立即创建 Vue 应用实例
 const app = createApp(App)
 
 // 使用 Pinia 状态管理
@@ -20,7 +19,6 @@ app.use(router)
 // 注册全局错误处理
 app.config.errorHandler = (err) => {
   console.error('Uncaught error:', err)
-  // 这里可以添加错误上报逻辑
 }
 
 // 立即挂载应用
@@ -34,32 +32,28 @@ initDB().then(async () => {
   console.log('Database initialized successfully')
   
   try {
-    // 直接使用 Pinia store 而不是动态导入
+    // 使用 Pinia store
     const { useAuthStore } = await import('@/stores/auth.store')
     const authStore = useAuthStore()
     
     // 从存储初始化认证状态
-    authStore.initFromStorage()
+    await authStore.initFromStorage()
     
     // 如果用户已登录，预加载数据
     if (authStore.isAuthenticated) {
-      // 动态导入其他store
       const { useEventStore } = await import('@/stores/event.store')
       const { useContactStore } = await import('@/stores/contact.store')
       
       const eventStore = useEventStore()
       const contactStore = useContactStore()
       
-      // 并行加载初始数据 - 使用正确的 action 名称
+      // 并行加载初始数据
       await Promise.allSettled([
-        eventStore.loadEvents(),   // 修改为 loadEvents()
-        contactStore.loadContacts() // 修改为 loadContacts()
+        eventStore.loadEvents(),
+        contactStore.loadContacts()
       ])
       
       console.log('Initial data loaded')
-      
-      // 处理事件提醒（在事件加载后执行）
-      // eventStore.processReminders() 已在 loadEvents 中调用
     }
   } catch (error) {
     console.error('Failed to initialize stores:', error)
@@ -74,8 +68,6 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     navigator.serviceWorker.register('/sw.js')
       .then(registration => {
         console.log('ServiceWorker registered:', registration)
-        
-        // 检查更新
         registration.update()
       })
       .catch(error => {
@@ -90,7 +82,6 @@ const setViewportScale = () => {
   if (viewport) {
     viewport.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'
   } else {
-    // 如果不存在则创建
     const meta = document.createElement('meta')
     meta.name = 'viewport'
     meta.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'
@@ -109,9 +100,7 @@ const initReminders = async () => {
     const { useAuthStore } = await import('@/stores/auth.store')
     const authStore = useAuthStore()
     
-    // 检查用户是否已认证
     if (authStore.isAuthenticated) {
-      // 初始化提醒服务
       initReminderService()
       console.log('Reminder service initialized')
     }
@@ -120,7 +109,7 @@ const initReminders = async () => {
   }
 }
 
-// 延迟初始化提醒服务，避免影响主线程
+// 延迟初始化提醒服务
 setTimeout(initReminders, 2000)
 
 // --- 添加令牌刷新机制 ---
@@ -130,8 +119,8 @@ const setupTokenRefresh = async () => {
     const authStore = useAuthStore()
     
     // 确保已初始化存储
-    if (!authStore.isAuthenticated) {
-      authStore.initFromStorage()
+    if (!authStore.isInitialized) {
+      await authStore.initFromStorage()
     }
     
     if (authStore.isAuthenticated) {
