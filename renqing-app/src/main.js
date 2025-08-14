@@ -5,12 +5,12 @@ import App from './App.vue'
 import router from './router'
 
 // 导入全局样式
-import '@/assets/main.css'
+import '@/assets/styles/main.css'
 
-// 初始化Vue应用
+// 立即创建 Vue 应用实例并挂载，避免被异步操作阻塞
 const app = createApp(App)
 
-// 使用Pinia状态管理
+// 使用 Pinia 状态管理
 const pinia = createPinia()
 app.use(pinia)
 
@@ -23,13 +23,13 @@ app.config.errorHandler = (err) => {
   // 这里可以添加错误上报逻辑
 }
 
-// 挂载应用到DOM
+// 立即挂载应用
 app.mount('#app')
 
 // --- 数据库初始化 ---
-import { initDB } from '@/storage/indexedDB'
+import { initDB } from '@/services/storage/indexedDB'
 
-// 初始化IndexedDB数据库
+// 初始化 IndexedDB 数据库
 initDB().then(async () => {
   console.log('Database initialized successfully')
   
