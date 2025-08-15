@@ -59,19 +59,16 @@ export const register = async (userData) => {
 export const login = async (credentials) => {
   try {
     // 基本验证
-    if (!validateEmail(credentials.email)) {
-      throw new Error('请输入有效的邮箱地址')
+    if (!credentials.username && !credentials.email) {
+      throw new Error('请输入用户名或邮箱')
     }
     
     if (!credentials.password) {
       throw new Error('请输入密码')
     }
     
-    // 调用API
-    const response = await apiClient.post('/auth/login', {
-      email: credentials.email,
-      password: credentials.password
-    })
+    // 调用API，直接传递credentials对象，让apiClient处理字段
+    const response = await apiClient.post('/auth/login', credentials)
     
     const user = response.data
     
@@ -79,7 +76,7 @@ export const login = async (credentials) => {
     await saveToDB('user', user)
     
     // 初始化用户数据
-    await initializeUserData(user.id)
+    // await initializeUserData(user.id) // 纯前端应用不需要初始化用户数据
     
     return user
   } catch (error) {
@@ -88,7 +85,7 @@ export const login = async (credentials) => {
       const { status } = error.response
       
       if (status === 401) {
-        throw new Error('邮箱或密码错误')
+        throw new Error('用户名或密码错误')
       }
       
       if (status === 404) {
@@ -144,44 +141,6 @@ export const getCurrentUser = async () => {
   }
 }
 
-// 初始化用户数据
-const initializeUserData = async (userId) => {
-  try {
-    // 检查本地是否有数据
-    const hasLocalData = await checkLocalDataExists()
-    
-    if (!hasLocalData) {
-      // 如果没有本地数据，从服务器获取初始数据
-      const [events, contacts] = await Promise.all([
-        apiClient.get(`/users/${userId}/events`),
-        apiClient.get(`/users/${userId}/contacts`)
-      ])
-      
-      // 保存到本地数据库
-      await Promise.all([
-        saveToDB('events', events.data),
-        saveToDB('contacts', contacts.data)
-      ])
-    }
-  } catch (error) {
-    console.error('初始化用户数据失败:', error)
-    // 这里失败不影响主要功能，可以继续
-  }
-}
-
-// 检查本地数据是否存在
-const checkLocalDataExists = async () => {
-  try {
-    const [events, contacts] = await Promise.all([
-      getFromDB('events'),
-      getFromDB('contacts')
-    ])
-    
-    return events && events.length > 0 && contacts && contacts.length > 0
-  } catch (error) {
-    return false
-  }
-}
 
 // 更新用户信息
 export const updateProfile = async (userData) => {

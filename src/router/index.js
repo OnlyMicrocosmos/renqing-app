@@ -19,7 +19,8 @@ const routes = [
     meta: { 
       guestOnly: true,
       title: '登录',
-      layout: 'empty'
+      layout: 'empty',
+      skipInitCheck: true // 添加跳过初始化检查
     }
   },
   {
@@ -29,7 +30,8 @@ const routes = [
     meta: { 
       guestOnly: true,
       title: '注册',
-      layout: 'empty'
+      layout: 'empty',
+      skipInitCheck: true // 添加跳过初始化检查
     }
   },
   {
@@ -114,6 +116,27 @@ const routes = [
       icon: 'settings'
     }
   },
+  // 加载路由 - 添加调试信息显示
+  {
+    path: '/loading',
+    name: 'loading',
+    component: () => import('@/views/LoadingView.vue'),
+    meta: { 
+      skipInitCheck: true,
+      hide: true
+    }
+  },
+  // 错误页面路由
+  {
+    path: '/error',
+    name: 'error',
+    component: () => import('@/views/ErrorView.vue'),
+    meta: { 
+      skipInitCheck: true,
+      hide: true
+    }
+  },
+  // 确保默认路由在最后
   {
     path: '/:pathMatch(.*)*',
     redirect: '/',
@@ -129,17 +152,79 @@ const router = createRouter({
   }
 })
 
-// 路由守卫 - 认证检查
+// 初始化保护机制
+let initAttempts = 0
+const MAX_INIT_ATTEMPTS = 3
+const INIT_TIMEOUT = 5000 // 5秒超时
+
+// 路由守卫 - 认证检查 (增强版)
 router.beforeEach(async (to, from, next) => {
+  console.log(`[ROUTER] Navigating from ${from.path} to ${to.path}`)
+  
+  // 跳过初始化检查的路由
+  if (to.meta.skipInitCheck) {
+    console.log('[ROUTER] Skipping init check for route:', to.path)
+    return next()
+  }
+  
   const authStore = useAuthStore()
+  console.log('[AUTH] Initialization state:', {
+    isInitialized: authStore.isInitialized,
+    initializing: authStore.initializing,
+    isAuthenticated: authStore.isAuthenticated
+  })
+  
+  // 1. 初始化尝试次数保护
+  if (initAttempts > MAX_INIT_ATTEMPTS) {
+    console.warn(`[AUTH] 初始化尝试次数过多(${initAttempts}次)，强制继续导航`)
+    return next()
+  }
+  
+  // 2. 初始化超时保护
+  const initTimeout = setTimeout(() => {
+    console.warn('[AUTH] 初始化超时，强制标记为已初始化')
+    authStore.setInitialized(true)
+  }, INIT_TIMEOUT)
   
   // 如果认证状态未初始化，尝试初始化
-  if (!authStore.isInitialized) {
+  if (!authStore.isInitialized && !authStore.initializing) {
+    console.log('[AUTH] Starting initialization')
+    authStore.setInitializing(true)
+    initAttempts++
+    
     try {
       await authStore.initFromStorage()
+      authStore.setInitialized(true)
+      console.log('[AUTH] Initialization completed')
     } catch (error) {
-      console.error('Failed to initialize auth store in router guard:', error)
+      console.error('[AUTH] Initialization failed:', error)
+      
+      // 初始化失败时重定向到错误页面
+      if (to.path !== '/error') {
+        return next({
+          name: 'error',
+          query: {
+            message: '应用初始化失败',
+            error: error.message
+          }
+        })
+      }
+    } finally {
+      clearTimeout(initTimeout)
+      authStore.setInitializing(false)
     }
+  }
+  
+  // 如果初始化未完成，重定向到加载页面
+  if (!authStore.isInitialized && authStore.initializing) {
+    console.log('[AUTH] Initialization in progress, redirecting to loader')
+    
+    // 保存当前路径，以便初始化完成后跳转回来
+    if (to.path !== '/loading') {
+      localStorage.setItem('redirectPath', to.fullPath)
+    }
+    
+    return next({ name: 'loading' })
   }
   
   // 检查路由是否需要认证
@@ -179,6 +264,20 @@ router.afterEach((to) => {
   const appName = '人情往来管理系统'
   document.title = to.meta.title ? `${to.meta.title} | ${appName}` : appName
   window.scrollTo(0, 0)
+})
+
+// 添加路由错误处理
+router.onError((error) => {
+  console.error('[ROUTER] Navigation error:', error)
+  
+  // 重定向到错误页面
+  router.push({
+    name: 'error',
+    query: {
+      message: '路由导航失败',
+      error: error.message
+    }
+  })
 })
 
 export default router

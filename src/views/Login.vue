@@ -5,12 +5,12 @@
     
     <form @submit.prevent="handleLogin">
       <div class="form-group">
-        <label for="username">用户名</label>
+        <label for="username">用户名或邮箱</label>
         <input
           id="username"
           v-model="username"
           type="text"
-          placeholder="请输入用户名"
+          placeholder="请输入用户名或邮箱"
           required
         />
       </div>
@@ -69,7 +69,10 @@ export default {
         error.value = '';
         
         // 调用登录方法
-        await authStore.login(username.value, password.value, rememberMe.value);
+        await authStore.login({
+          username: username.value,
+          password: password.value
+        });
         
         // 登录成功后跳转到首页
         // router.push('/dashboard');

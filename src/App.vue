@@ -1,130 +1,129 @@
 <template>
-  <div class="app-container">
-    <!-- 应用加载状态 -->
-    <div v-if="!appInitialized" class="app-loading">
-      <div class="loader"></div>
-      <p>应用初始化中...</p>
-    </div>
-    
-    <template v-else>
-      <!-- 顶部导航栏 -->
-      <header class="app-header">
-        <div class="container flex-between">
-          <!-- 品牌标识 -->
-          <router-link to="/" class="logo">
-            <i class="icon-gift"></i>
-            <span>人情账本</span>
+  <!-- 当认证状态正在初始化时显示加载界面 -->
+  <div v-if="authStore.initializing" class="app-loading">
+    <div class="loader"></div>
+    <p>应用初始化中... {{ authStore.initializationStep }}</p>
+  </div>
+  
+  <!-- 初始化完成后显示应用内容 -->
+  <div v-else class="app-container">
+    <!-- 顶部导航栏 -->
+    <header class="app-header">
+      <div class="container flex-between">
+        <!-- 品牌标识 -->
+        <router-link to="/" class="logo">
+          <i class="icon-gift"></i>
+          <span>人情账本</span>
+        </router-link>
+        
+        <!-- 主导航（登录后显示） -->
+        <nav v-if="isAuthenticated" class="nav-menu">
+          <router-link v-for="route in mainRoutes" :key="route.name" :to="{ name: route.name }" class="nav-link">
+            <i :class="'icon-' + route.meta.icon"></i>
+            <span>{{ route.meta.title }}</span>
           </router-link>
-          
-          <!-- 主导航（登录后显示） -->
-          <nav v-if="isAuthenticated" class="nav-menu">
-            <router-link v-for="route in mainRoutes" :key="route.name" :to="{ name: route.name }" class="nav-link">
-              <i :class="'icon-' + route.meta.icon"></i>
-              <span>{{ route.meta.title }}</span>
-            </router-link>
-          </nav>
-          
-          <!-- 用户操作区 -->
-          <div class="user-actions">
-            <!-- 登录状态 -->
-            <template v-if="isAuthenticated">
-              <!-- 通知提醒 -->
-              <div class="notifications">
-                <button @click="toggleNotifications" class="notify-btn">
-                  <i class="icon-bell"></i>
-                  <span v-if="pendingReminders.length" class="badge">{{ pendingReminders.length }}</span>
-                </button>
-                <div v-if="showNotifications" class="notifications-panel">
-                  <h4>待处理提醒</h4>
-                  <div v-if="pendingReminders.length">
-                    <div v-for="reminder in pendingReminders" :key="reminder.id" class="notification-item">
-                      <div class="notification-content">
-                        <strong>{{ reminder.title }}</strong>
-                        <p>{{ reminder.message }}</p>
-                        <small>{{ formatDate(reminder.date) }}</small>
-                      </div>
-                      <button @click="markAsRead(reminder)" class="btn-icon">
-                        <i class="icon-check"></i>
-                      </button>
+        </nav>
+        
+        <!-- 用户操作区 -->
+        <div class="user-actions">
+          <!-- 登录状态 -->
+          <template v-if="isAuthenticated">
+            <!-- 通知提醒 -->
+            <div class="notifications">
+              <button @click="toggleNotifications" class="notify-btn">
+                <i class="icon-bell"></i>
+                <span v-if="pendingReminders.length" class="badge">{{ pendingReminders.length }}</span>
+              </button>
+              <div v-if="showNotifications" class="notifications-panel">
+                <h4>待处理提醒</h4>
+                <div v-if="pendingReminders.length">
+                  <div v-for="reminder in pendingReminders" :key="reminder.id" class="notification-item">
+                    <div class="notification-content">
+                      <strong>{{ reminder.title }}</strong>
+                      <p>{{ reminder.message }}</p>
+                      <small>{{ formatDate(reminder.date) }}</small>
                     </div>
-                  </div>
-                  <div v-else class="empty-notifications">
-                    没有待处理的提醒
-                  </div>
-                </div>
-              </div>
-              
-              <!-- 用户信息 -->
-              <div class="user-profile">
-                <img :src="userAvatar" class="avatar" alt="用户头像" />
-                <div class="user-info">
-                  <span class="username">{{ username }}</span>
-                  <div class="user-menu">
-                    <router-link to="/settings/profile">个人资料</router-link>
-                    <router-link to="/settings">系统设置</router-link>
-                    <button @click="logout" class="logout-btn">退出登录</button>
+                    <button @click="markAsRead(reminder)" class="btn-icon">
+                      <i class="icon-check"></i>
+                    </button>
                   </div>
                 </div>
+                <div v-else class="empty-notifications">
+                  没有待处理的提醒
+                </div>
               </div>
-            </template>
+            </div>
             
-            <!-- 未登录状态 -->
-            <template v-else>
-              <router-link to="/login" class="btn btn-outline">登录</router-link>
-              <router-link to="/register" class="btn btn-primary">注册</router-link>
-            </template>
-          </div>
-        </div>
-      </header>
-      
-      <!-- 面包屑导航 -->
-      <div v-if="isAuthenticated && breadcrumbs.length" class="breadcrumbs">
-        <div class="container">
-          <router-link v-for="(crumb, index) in breadcrumbs" 
-                      :key="index"
-                      :to="crumb.path" 
-                      class="breadcrumb-item"
-                      :class="{ 'active': index === breadcrumbs.length - 1 }">
-            {{ crumb.name }}
-            <span v-if="index < breadcrumbs.length - 1" class="divider">/</span>
-          </router-link>
+            <!-- 用户信息 -->
+            <div class="user-profile">
+              <img :src="userAvatar" class="avatar" alt="用户头像" />
+              <div class="user-info">
+                <span class="username">{{ username }}</span>
+                <div class="user-menu">
+                  <router-link to="/settings/profile">个人资料</router-link>
+                  <router-link to="/settings">系统设置</router-link>
+                  <button @click="logout" class="logout-btn">退出登录</button>
+                </div>
+              </div>
+            </div>
+          </template>
+          
+          <!-- 未登录状态 -->
+          <template v-else>
+            <router-link to="/login" class="btn btn-outline">登录</router-link>
+            <router-link to="/register" class="btn btn-primary">注册</router-link>
+          </template>
         </div>
       </div>
-      
-      <!-- 主要内容区 -->
-      <main class="app-main">
-        <div class="container">
-          <!-- 加载状态指示器 -->
-          <div v-if="loading" class="loading-overlay">
-            <div class="loader"></div>
-          </div>
-          
-          <!-- 路由视图 -->
-          <router-view v-slot="{ Component }">
-            <transition name="fade" mode="out-in">
-              <component :is="Component" />
-            </transition>
-          </router-view>
+    </header>
+    
+    <!-- 面包屑导航 -->
+    <div v-if="isAuthenticated && breadcrumbs.length" class="breadcrumbs">
+      <div class="container">
+        <router-link v-for="(crumb, index) in breadcrumbs" 
+                    :key="index"
+                    :to="crumb.path" 
+                    class="breadcrumb-item"
+                    :class="{ 'active': index === breadcrumbs.length - 1 }">
+          {{ crumb.name }}
+          <span v-if="index < breadcrumbs.length - 1" class="divider">/</span>
+        </router-link>
+      </div>
+    </div>
+    
+    <!-- 主要内容区 -->
+    <main class="app-main">
+      <div class="container">
+        <!-- 加载状态指示器 -->
+        <div v-if="loading" class="loading-overlay">
+          <div class="loader"></div>
         </div>
-      </main>
-      
-      <!-- 页脚 -->
-      <footer class="app-footer">
-        <div class="container flex-between">
-          <p>© {{ currentYear }} 人情账本 - 记录每一次人情往来</p>
-          <div class="footer-links">
-            <router-link to="/about">关于我们</router-link>
-            <router-link to="/privacy">隐私政策</router-link>
-            <router-link to="/terms">服务条款</router-link>
-          </div>
+        
+        <!-- 路由视图 -->
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </div>
+    </main>
+    
+    <!-- 页脚 -->
+    <footer class="app-footer">
+      <div class="container flex-between">
+        <p>© {{ currentYear }} 人情账本 - 记录每一次人情往来</p>
+        <div class="footer-links">
+          <router-link to="/about">关于我们</router-link>
+          <router-link to="/privacy">隐私政策</router-link>
+          <router-link to="/terms">服务条款</router-link>
         </div>
-      </footer>
-    </template>
+      </div>
+    </footer>
   </div>
 </template>
 
 <script setup>
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEventStore } from '@/stores/event.store'
@@ -138,7 +137,6 @@ const eventStore = useEventStore()
 // 响应式数据
 const showNotifications = ref(false)
 const loading = ref(false)
-const appInitialized = ref(false)
 
 // 计算属性
 const isAuthenticated = computed(() => authStore.isAuthenticated)
@@ -167,53 +165,60 @@ const pendingReminders = computed(() => {
   return eventStore.pendingReminders
 })
 
-// 监听路由变化显示加载状态
-watch(() => route.path, (newPath, oldPath) => {
-  if (newPath !== oldPath) {
-    loading.value = true
-    setTimeout(() => {
-      loading.value = false
-    }, 300)
-  }
-})
-
-// 日期格式化
-const formatDate = (dateString) => {
-  return dateUtil.format(dateString, 'yyyy-MM-dd HH:mm')
+// 格式化日期
+const formatDate = (date) => {
+  return dateUtil.format(date, 'yyyy-MM-dd')
 }
 
-// 切换通知面板
+// 切换通知面板显示状态
 const toggleNotifications = () => {
   showNotifications.value = !showNotifications.value
 }
 
 // 标记提醒为已读
 const markAsRead = (reminder) => {
-  eventStore.markReminderAsRead(reminder.eventId)
+  eventStore.markReminderAsRead(reminder.id)
 }
 
-// 退出登录
-const logout = () => {
-  authStore.logout()
-  router.push({ name: 'login' })
+// 用户登出
+const logout = async () => {
+  try {
+    await authStore.logout()
+    router.push('/login')
+  } catch (error) {
+    console.error('Logout failed:', error)
+  }
 }
 
-// 应用初始化完成
+// 初始化检查
 onMounted(() => {
-  setTimeout(() => {
-    appInitialized.value = true
-  }, 800)
+  console.log('[APP] Component mounted')
+  console.log('[APP] Auth store state:', {
+    isInitialized: authStore.isInitialized,
+    initializing: authStore.initializing,
+    isAuthenticated: authStore.isAuthenticated
+  })
+  
+  // 如果尚未开始初始化，手动触发
+  if (!authStore.isInitialized && !authStore.initializing) {
+    console.log('[APP] Triggering initialization from App.vue')
+    authStore.setInitializing(true)
+    authStore.initFromStorage().finally(() => {
+      authStore.setInitializing(false)
+    })
+  }
 })
 </script>
 
 <style>
 /* 全局样式 */
-body, html {
+html, body {
+  height: 100%;
   margin: 0;
   padding: 0;
-  height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: #f5f7fb;
+  overflow: auto; /* 允许滚动 */
 }
 
 #app {
