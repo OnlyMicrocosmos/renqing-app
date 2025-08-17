@@ -8,12 +8,12 @@
 
       <form @submit.prevent="handleLogin" class="auth-form">
         <div class="form-group">
-          <label for="username">用户名或邮箱</label>
+          <label for="username">用户名</label>
           <input 
             id="username"
             v-model="credentials.username" 
             type="text" 
-            placeholder="请输入用户名或邮箱" 
+            placeholder="请输入用户名" 
             class="form-control"
             required
           />
@@ -91,7 +91,7 @@ onMounted(() => {
 
 const handleLogin = async () => {
   if (!credentials.username || !credentials.password) {
-    errorMessage.value = '请输入用户名/邮箱和密码'
+    errorMessage.value = '请输入用户名和密码'
     return
   }
 
@@ -115,7 +115,7 @@ const handleLogin = async () => {
     // 跳转到仪表盘
     router.push('/dashboard')
   } catch (error) {
-    errorMessage.value = error.message || '登录失败: 用户名或密码错误'
+    errorMessage.value = '登录失败: ' + (error.message || '用户名或密码错误')
   } finally {
     loading.value = false
   }
@@ -204,22 +204,57 @@ const handleLogin = async () => {
   margin-bottom: 1.8rem;
 }
 
-.checkbox-group {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
 .checkbox-label {
   display: flex;
   align-items: center;
   cursor: pointer;
+  position: relative;
+  user-select: none;
   font-size: 0.9rem;
-  color: #495057;
 }
 
 .checkbox-label input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkmark {
+  height: 18px;
+  width: 18px;
+  background-color: #f1f5f9;
+  border-radius: 4px;
   margin-right: 0.5rem;
+  position: relative;
+  border: 1px solid #cbd5e1;
+  transition: all 0.2s ease;
+}
+
+.checkbox-label input:checked ~ .checkmark {
+  background-color: #4361ee;
+  border-color: #4361ee;
+}
+
+.checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+.checkbox-label input:checked ~ .checkmark:after {
+  display: block;
+}
+
+.checkbox-label .checkmark:after {
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
 .forgot-password {
@@ -234,50 +269,40 @@ const handleLogin = async () => {
   color: #3a56d4;
 }
 
-.btn {
-  display: inline-block;
-  font-weight: 500;
-  text-align: center;
-  vertical-align: middle;
-  cursor: pointer;
-  border: 1px solid transparent;
-  padding: 0.75rem 1rem;
-  font-size: 1rem;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  width: 100%;
-}
-
-.btn-primary {
-  color: #fff;
-  background-color: #4361ee;
-  border-color: #4361ee;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #3a56e4;
-  border-color: #3a56e4;
-}
-
-.btn-primary:disabled {
-  background-color: #a9b9f7;
-  border-color: #a9b9f7;
-  cursor: not-allowed;
-}
-
 .btn-block {
-  display: block;
   width: 100%;
+  padding: 0.85rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  background: #4361ee;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-block:hover {
+  background: #3a56d4;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(67, 97, 238, 0.3);
+}
+
+.btn-block:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .error-message {
-  color: #dc3545;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
+  background: #fff5f5;
+  color: #e53e3e;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1.2rem;
   font-size: 0.9rem;
+  border-left: 3px solid #e53e3e;
 }
 
 .auth-footer {
