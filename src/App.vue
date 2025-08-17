@@ -1,4 +1,636 @@
 <template>
+  <div class="app-container">
+    <!-- 顶部导航栏 -->
+    <header class="app-header">
+      <div class="container flex-between">
+        <!-- 品牌标识 -->
+        <router-link to="/" class="logo">
+          <i class="icon-gift"></i>
+          <span>人情账本</span>
+        </router-link>
+        
+        <!-- 主导航（登录后显示） -->
+        <nav v-if="isAuthenticated" class="nav-menu">
+          <router-link v-for="route in mainRoutes" :key="route.name" :to="{ name: route.name }" class="nav-link">
+            <i :class="'icon-' + route.meta.icon"></i>
+            <span>{{ route.meta.title }}</span>
+          </router-link>
+        </nav>
+        
+        <!-- 用户操作区 -->
+        <div class="user-actions">
+          <!-- 登录状态 -->
+          <template v-if="isAuthenticated">
+            <!-- 通知提醒 -->
+            <div class="notifications">
+              <button @click="toggleNotifications" class="notify-btn">
+                <i class="icon-bell"></i>
+                <span v-if="pendingReminders.length" class="badge">{{ pendingReminders.length }}</span>
+              </button>
+              <div v-if="showNotifications" class="notifications-panel">
+                <h4>待处理提醒</h4>
+                <div v-if="pendingReminders.length">
+                  <div v-for="reminder in pendingReminders" :key="reminder.id" class="notification-item">
+                    <div class="notification-content">
+                      <strong>{{ reminder.title }}</strong>
+                      <p>{{ reminder.message }}</p>
+                      <small>{{ formatDate(reminder.date) }}</small>
+                    </div>
+                    <button @click="markAsRead(reminder)" class="btn-icon">
+                      <i class="icon-check"></i>
+                    </button>
+                  </div>
+                </div>
+                <div v-else class="empty-notifications">
+                  没有待处理的提醒
+                </div>
+              </div>
+            </div>
+            
+            <!-- 用户信息 -->
+            <div class="user-profile">
+              <img :src="userAvatar" class="avatar" alt="用户头像" />
+              <div class="user-info">
+                <span class="username">{{ username }}</span>
+                <div class="user-menu">
+                  <router-link to="/settings/profile">个人资料</router-link>
+                  <router-link to="/settings">系统设置</router-link>
+                  <button @click="logout" class="logout-btn">退出登录</button>
+                </div>
+              </div>
+            </div>
+          </template>
+          
+          <!-- 未登录状态 -->
+          <template v-else>
+            <router-link to="/login" class="btn btn-outline">登录</router-link>
+            <router-link to="/register" class="btn btn-primary">注册</router-link>
+          </template>
+        </div>
+      </div>
+    </header>
+    
+    <!-- 面包屑导航 -->
+    <div v-if="isAuthenticated && breadcrumbs.length" class="breadcrumbs">
+      <div class="container">
+        <router-link v-for="(crumb, index) in breadcrumbs" 
+                    :key="index"
+                    :to="crumb.path" 
+                    class="breadcrumb-item"
+                    :class="{ 'active': index === breadcrumbs.length - 1 }">
+          {{ crumb.name }}
+          <span v-if="index < breadcrumbs.length - 1" class="divider">/</span>
+        </router-link>
+      </div>
+    </div>
+    
+    <!-- 主要内容区 -->
+    <main class="app-main">
+      <div class="container">
+        <!-- 加载状态指示器 -->
+        <div v-if="loading" class="loading-overlay">
+          <div class="loader"></div>
+        </div>
+        
+        <!-- 路由视图容器 -->
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </div>
+    </main>
+    
+    <!-- 应用页脚 -->
+    <footer class="app-footer">
+      <div class="container flex-between">
+        <div class="copyright">
+          &copy; {{ new Date().getFullYear() }} 人情账本. 保留所有权利.
+        </div>
+        <div class="footer-links">
+          <a href="#" @click.prevent="showAbout">关于</a>
+          <a href="#" @click.prevent="showHelp">帮助</a>
+          <a href="#" @click.prevent="showPrivacy">隐私政策</a>
+        </div>
+      </div>
+    </footer>
+  </div>
+</template>
+
+<script setup>
+import { computed, ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth.store'
+import { useContactStore } from '@/stores/contact.store'
+import { useEventStore } from '@/stores/event.store'
+import dateUtil from '@/utils/date.js'
+import { setupReminders } from '@/utils/reminder'
+
+const router = useRouter()
+const route = useRoute()
+const authStore = useAuthStore()
+const contactStore = useContactStore()
+const eventStore = useEventStore()
+
+// 响应式数据
+const showNotifications = ref(false)
+const loading = ref(false)
+const mainRoutes = ref([])
+const breadcrumbs = ref([])
+const pendingReminders = ref([])
+
+// 计算属性
+const isAuthenticated = computed(() => authStore.isAuthenticated)
+const username = computed(() => authStore.fullName || authStore.user?.username || '未知用户')
+const userAvatar = computed(() => authStore.user?.avatar || '/default-avatar.png')
+
+// 生命周期钩子
+onMounted(() => {
+  // 初始化应用
+  initializeApp()
+  
+  // 设置提醒功能
+  setupReminders()
+  
+  // 如果未初始化，则开始初始化
+  if (!authStore.isInitialized && !authStore.initializing) {
+    authStore.initFromStorage()
+  }
+})
+
+// 方法定义
+async function initializeApp() {
+  try {
+    loading.value = true
+    
+    // 初始化联系人和事件数据
+    if (authStore.isAuthenticated) {
+      await Promise.all([
+        contactStore.loadContacts(),
+        eventStore.loadEvents()
+      ])
+    }
+    
+    // 更新路由信息
+    updateNavigation()
+  } catch (error) {
+    console.error('[APP] 初始化应用数据失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+function updateNavigation() {
+  // 主要路由
+  mainRoutes.value = router.options.routes.filter(route => 
+    route.meta?.requiresAuth && route.meta?.icon
+  )
+  
+  // 面包屑导航
+  breadcrumbs.value = route.meta?.breadcrumb || []
+}
+
+function toggleNotifications() {
+  showNotifications.value = !showNotifications.value
+}
+
+function markAsRead(reminder) {
+  const index = pendingReminders.value.findIndex(r => r.id === reminder.id)
+  if (index > -1) {
+    pendingReminders.value.splice(index, 1)
+  }
+}
+
+function logout() {
+  authStore.logout()
+  router.push({ name: 'login' })
+}
+
+function formatDate(date) {
+  return dateUtil.format(date, 'yyyy年MM月dd日')
+}
+
+function showAbout() {
+  // 显示关于信息
+}
+
+function showHelp() {
+  // 显示帮助信息
+}
+
+function showPrivacy() {
+  // 显示隐私政策
+}
+</script>
+
+<style>
+/* 全局样式变量 */
+:root {
+  --primary: #409eff;
+  --success: #67c23a;
+  --warning: #e6a23c;
+  --danger: #f56c6c;
+  --info: #909399;
+  --dark: #303133;
+  --gray: #606266;
+  --light-gray: #c0c4cc;
+  --extra-light: #f4f4f5;
+  --white: #ffffff;
+  --black: #000000;
+  --border-radius: 6px;
+  --shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --container-max-width: 1200px;
+}
+
+/* 重置样式 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--dark);
+  background-color: #f5f6fa;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+ul, ol {
+  list-style: none;
+}
+
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  outline: none;
+}
+
+.container {
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: var(--border-radius);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  border: 1px solid transparent;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-outline {
+  border-color: var(--primary);
+  color: var(--primary);
+  background-color: transparent;
+}
+
+.btn:hover {
+  opacity: 0.8;
+}
+
+/* 应用容器 */
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 头部样式 */
+.app-header {
+  background-color: white;
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.logo i {
+  margin-right: 8px;
+  font-size: 1.5rem;
+}
+
+.nav-menu {
+  display: flex;
+  gap: 20px;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 15px;
+  border-radius: var(--border-radius);
+  transition: var(--transition);
+  color: var(--gray);
+}
+
+.nav-link:hover,
+.nav-link.router-link-exact-active {
+  background-color: #ecf5ff;
+  color: var(--primary);
+}
+
+.user-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.notify-btn {
+  position: relative;
+  font-size: 1.2rem;
+  color: var(--gray);
+  padding: 5px;
+  border-radius: 50%;
+  transition: var(--transition);
+}
+
+.notify-btn:hover {
+  background-color: var(--extra-light);
+  color: var(--primary);
+}
+
+.badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: var(--danger);
+  color: white;
+  font-size: 12px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notifications-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 320px;
+  background-color: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  padding: 15px;
+  z-index: 1000;
+  margin-top: 10px;
+}
+
+.notifications-panel h4 {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--extra-light);
+}
+
+.notification-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--extra-light);
+}
+
+.notification-content strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.notification-content small {
+  color: var(--gray);
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  color: var(--gray);
+  padding: 5px;
+  border-radius: var(--border-radius);
+  transition: var(--transition);
+}
+
+.btn-icon:hover {
+  background-color: var(--extra-light);
+  color: var(--primary);
+}
+
+.empty-notifications {
+  text-align: center;
+  padding: 20px;
+  color: var(--gray);
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.username {
+  font-weight: 500;
+}
+
+.user-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  padding: 10px 0;
+  min-width: 120px;
+  display: none;
+  z-index: 1000;
+}
+
+.user-profile:hover .user-menu {
+  display: block;
+}
+
+.user-menu a,
+.user-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 15px;
+  color: var(--gray);
+  transition: var(--transition);
+}
+
+.user-menu a:hover,
+.user-menu button:hover {
+  background-color: var(--extra-light);
+  color: var(--primary);
+}
+
+.logout-btn {
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* 面包屑导航 */
+.breadcrumbs {
+  background-color: white;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--extra-light);
+}
+
+.breadcrumb-item {
+  color: var(--gray);
+}
+
+.breadcrumb-item.active {
+  color: var(--primary);
+}
+
+.divider {
+  margin: 0 8px;
+  color: var(--light-gray);
+}
+
+/* 主要内容区 */
+.app-main {
+  flex: 1;
+  padding: 20px 0;
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.loader {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--extra-light);
+  border-top: 4px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 动画效果 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 页脚样式 */
+.app-footer {
+  background-color: white;
+  padding: 20px 0;
+  border-top: 1px solid var(--light-gray);
+  color: var(--gray);
+  font-size: 0.9rem;
+}
+
+.footer-links {
+  display: flex;
+  gap: 15px;
+}
+
+.footer-links a {
+  color: var(--gray);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.footer-links a:hover {
+  color: var(--primary);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .nav-menu {
+    display: none;
+  }
+  
+  .logo span {
+    display: none;
+  }
+  
+  .user-actions {
+    gap: 8px;
+  }
+  
+  .username {
+    display: none;
+  }
+  
+  .notifications-panel {
+    width: 280px;
+    right: -20px;
+  }
+  
+  .footer-links {
+    flex-direction: column;
+    gap: 5px;
+  }
+}
+</style>
+<template>
   <!-- 当认证状态正在初始化时显示加载界面 -->
   <div v-show="authStore.initializing" class="app-loading">
     <div class="loader"></div>

@@ -4,12 +4,23 @@ console.log('[MAIN] Script started executing');
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
-import router from './router' // 确保导入路由
-
-console.log('[MAIN] All imports successful');
+import router from './router'
 
 // 创建 Vue 应用实例
 const app = createApp(App)
+
+// 创建 Pinia store
+const pinia = createPinia()
+
+// 安装插件
+app.use(pinia)
+app.use(router)
+
+// 挂载应用
+app.mount('#app')
+
+console.log('[MAIN] All imports successful');
+
 console.log('[MAIN] Vue app created');
 
 // 添加全局错误处理

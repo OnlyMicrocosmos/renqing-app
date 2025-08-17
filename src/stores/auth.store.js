@@ -55,19 +55,17 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authService.register(userData);
       
-      // 注册后自动登录
-      if (response.accessToken) {
-        user.value = response.user;
-        isAuthenticated.value = true;
-        
-        localStorage.setItem('user', JSON.stringify(response.user));
-        localStorage.setItem('accessToken', response.accessToken);
-        localStorage.setItem('refreshToken', response.refreshToken);
-      }
+      user.value = response.user;
+      isAuthenticated.value = true;
+      
+      // 持久化存储用户信息
+      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.setItem('accessToken', response.accessToken);
+      localStorage.setItem('refreshToken', response.refreshToken);
       
       return response;
     } catch (err) {
-      error.value = err.response?.data?.message || err.message || '注册失败，请重试';
+      error.value = err.response?.data?.message || err.message || '注册失败';
       throw err;
     } finally {
       loading.value = false;
@@ -75,80 +73,52 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * 从存储初始化认证状态 - 增强版
+   * 用户登出
+   */
+  function logout() {
+    user.value = null;
+    isAuthenticated.value = false;
+    
+    // 清除本地存储
+    localStorage.removeItem('user');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    
+    // 重置状态
+    isInitialized.value = false;
+  }
+
+  /**
+   * 从本地存储初始化用户状态
    */
   async function initFromStorage() {
+    // 如果已经初始化，直接返回
+    if (isInitialized.value) {
+      return;
+    }
+    
+    initializing.value = true;
+    initializationStep.value = '检查本地存储';
+    
     try {
-      // 防抖处理
-      if (isInitialized.value || initializing.value) {
-        console.log('[Auth Store] Already initialized or initializing, skipping');
-        return Promise.resolve();
+      // 检查本地存储中的用户信息
+      const storedUser = localStorage.getItem('user');
+      const storedAccessToken = localStorage.getItem('accessToken');
+      
+      if (storedUser && storedAccessToken) {
+        user.value = JSON.parse(storedUser);
+        isAuthenticated.value = true;
       }
-      
-      initializing.value = true;
-      updateInitializationStep('开始初始化...');
-      
-      // 使用setTimeout创建微任务，避免阻塞主线程
-      await new Promise(resolve => setTimeout(resolve, 0));
-      
-      // 检查 localStorage 中的用户数据 - 添加数据验证
-      const storedUser = localStorage.getItem('user')
-      if (storedUser) {
-        try {
-          // 验证JSON格式有效性
-          updateInitializationStep('验证用户数据...');
-          const parsedUser = JSON.parse(storedUser)
-          
-          // 基本数据验证
-          if (!parsedUser || typeof parsedUser !== 'object') {
-            throw new Error('无效的用户数据格式')
-          }
-          
-          // 确保必要字段存在
-          const requiredFields = ['id', 'username', 'email']
-          const missingFields = requiredFields.filter(field => !parsedUser[field])
-          
-          if (missingFields.length > 0) {
-            throw new Error(`缺少必要字段: ${missingFields.join(', ')}`)
-          }
-          
-          user.value = parsedUser
-          isAuthenticated.value = true
-        } catch (parseError) {
-          console.error('用户数据解析失败:', parseError)
-          updateInitializationStep('清除无效用户数据...')
-          
-          // 清除无效的用户数据
-          localStorage.removeItem('user')
-          localStorage.removeItem('accessToken')
-          localStorage.removeItem('refreshToken')
-        }
-      }
-      
-      // 检查令牌有效性
-      updateInitializationStep('检查令牌有效期...')
-      const accessToken = localStorage.getItem('accessToken')
-      
-      if (accessToken) {
-        // 实际项目中这里应该验证令牌有效期
-        // 这里简化为检查令牌是否存在
-        tokenNeedsRefresh.value = false
-      }
-      
-      updateInitializationStep('完成初始化')
-      isInitialized.value = true
-      return Promise.resolve();
     } catch (err) {
-      console.error('初始化失败:', err)
-      updateInitializationStep(`初始化出错: ${err.message}`)
-      
-      // 即使出错也要标记为已初始化，避免无限循环
-      isInitialized.value = true
-      
-      // 不再抛出错误，避免阻塞应用
-      return Promise.resolve();
+      console.error('从本地存储初始化用户状态失败:', err);
+      // 清除可能损坏的存储数据
+      localStorage.removeItem('user');
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
     } finally {
       initializing.value = false;
+      isInitialized.value = true;
+      initializationStep.value = '初始化完成';
     }
   }
 
@@ -157,91 +127,66 @@ export const useAuthStore = defineStore('auth', () => {
    */
   async function refreshAccessToken() {
     try {
-      updateInitializationStep('刷新访问令牌...')
-      
-      const refreshToken = localStorage.getItem('refreshToken')
+      const refreshToken = localStorage.getItem('refreshToken');
       if (!refreshToken) {
-        throw new Error('刷新令牌不存在')
+        throw new Error('没有刷新令牌');
       }
       
-      const response = await authService.refreshToken({ refreshToken })
+      const response = await authService.refreshToken({ refreshToken });
       
-      localStorage.setItem('accessToken', response.accessToken)
-      tokenNeedsRefresh.value = false
+      // 更新令牌
+      localStorage.setItem('accessToken', response.accessToken);
+      if (response.refreshToken) {
+        localStorage.setItem('refreshToken', response.refreshToken);
+      }
       
-      return response.accessToken
-    } catch (error) {
-      console.error('令牌刷新失败:', error)
-      logout()
-      throw error
+      tokenNeedsRefresh.value = false;
+      return response;
+    } catch (err) {
+      // 刷新失败，需要重新登录
+      logout();
+      throw err;
     }
-  }
-
-  /**
-   * 用户退出登录
-   */
-  function logout() {
-    user.value = null;
-    isAuthenticated.value = false;
-    tokenNeedsRefresh.value = false;
-    
-    // 清除本地存储
-    localStorage.removeItem('user');
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    
-    // 重置初始化状态
-    isInitialized.value = false;
-  }
-
-  /**
-   * 更新初始化步骤
-   * @param {string} step - 当前初始化步骤描述
-   */
-  function updateInitializationStep(step) {
-    initializationStep.value = step
-    console.log(`[Auth Store] ${step}`)
   }
 
   /**
    * 设置初始化状态
-   * @param {boolean} value - 是否正在初始化
    */
   function setInitializing(value) {
-    initializing.value = value
-    if (value) {
-      updateInitializationStep('开始初始化...')
-    }
+    initializing.value = value;
   }
 
   /**
-   * 设置初始化完成状态
-   * @param {boolean} value - 是否初始化完成
+   * 设置已初始化状态
    */
   function setInitialized(value) {
-    isInitialized.value = value
+    isInitialized.value = value;
   }
 
   /**
-   * 检查认证状态
-   * @returns {boolean} 是否已认证
+   * 设置初始化步骤
    */
-  function checkAuthStatus() {
-    return isAuthenticated.value
+  function setInitializationStep(step) {
+    initializationStep.value = step;
   }
 
-  // 添加令牌刷新检查逻辑
-  function checkTokenRefresh() {
-    const accessToken = localStorage.getItem('accessToken')
-    if (!accessToken) {
-      tokenNeedsRefresh.value = true
-      return
-    }
-    
-    // 实际项目中应解码JWT检查过期时间
-    // 这里简化为总是有效，实际应根据业务逻辑实现
-    tokenNeedsRefresh.value = false
+  /**
+   * 强制完成初始化
+   */
+  function forceCompleteInitialization() {
+    initializing.value = false;
+    isInitialized.value = true;
   }
+
+  // 计算属性
+  const fullName = computed(() => {
+    if (!user.value) return '';
+    return user.value.fullName || user.value.nickname || user.value.username;
+  });
+
+  const canAccess = computed(() => {
+    return isInitialized.value && isAuthenticated.value;
+  });
 
   return {
     // 状态
@@ -253,17 +198,70 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     tokenNeedsRefresh,
     initializationStep,
+    fullName,
+    canAccess,
     
     // 方法
     login,
     register,
-    initFromStorage,
     logout,
+    initFromStorage,
+    refreshAccessToken,
     setInitializing,
     setInitialized,
-    checkAuthStatus,
-    updateInitializationStep,
-    refreshAccessToken, // 新增方法
-    checkTokenRefresh  // 新增方法
+    setInitializationStep,
+    forceCompleteInitialization
+  };
+});
+
+// 为了向后兼容，保留部分旧的状态结构
+export const useAuthStoreOld = defineStore('authOld', {
+  state: () => ({
+    user: JSON.parse(localStorage.getItem('user')) || null,
+    accessToken: localStorage.getItem('accessToken') || null,
+    refreshToken: localStorage.getItem('refreshToken') || null,
+    isAuthenticated: !!localStorage.getItem('accessToken'),
+    loading: false,
+    error: null,
+    isInitialized: false,
+    initializing: false,
+    initializationStep: ''
+  }),
+  
+  actions: {
+    // 简化的初始化方法
+    async initFromStorage() {
+      this.initializing = true;
+      try {
+        const storedUser = localStorage.getItem('user');
+        const storedAccessToken = localStorage.getItem('accessToken');
+        
+        if (storedUser && storedAccessToken) {
+          this.user = JSON.parse(storedUser);
+          this.isAuthenticated = true;
+        }
+      } catch (err) {
+        console.error('初始化失败:', err);
+        localStorage.removeItem('user');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      } finally {
+        this.initializing = false;
+        this.isInitialized = true;
+      }
+    },
+    
+    logout() {
+      this.user = null;
+      this.accessToken = null;
+      this.refreshToken = null;
+      this.isAuthenticated = false;
+      
+      localStorage.removeItem('user');
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      
+      this.isInitialized = false;
+    }
   }
-})
+});
