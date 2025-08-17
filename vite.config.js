@@ -25,23 +25,8 @@ export default defineConfig({
   },
   base: './',
   server: {
-    port: 3000,
-    open: true,
-    strictPort: false,
-    hmr: {
-      protocol: 'ws',
-      host: 'localhost',
-      port: 3000 // 显式指定 HMR 端口
-    },
-    // 添加代理解决 API 请求问题
-    proxy: {
-      '/api': {
-        target: 'http://your-backend-domain.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
-      }
-    }
-    // 移除 middlewareMode 配置，该配置与 HTTP 服务器冲突
+    port: 3000, // 确保与API客户端配置一致
+    open: true
   },
   build: {
     outDir: 'dist',
@@ -67,8 +52,7 @@ export default defineConfig({
       'vue', 
       'vue-router', 
       'pinia',
-      'axios',
-      'dayjs'
+      'axios'
     ],
     exclude: ['vue-demi']
   },

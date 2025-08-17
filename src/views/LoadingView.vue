@@ -3,6 +3,7 @@
     <div class="loader"></div>
     <p>应用初始化中...</p>
     <p v-if="initializationProgress">{{ initializationProgress }}</p>
+    <button @click="handleSkip" class="skip-button">跳过初始化</button>
   </div>
 </template>
 
@@ -27,17 +28,30 @@ onMounted(() => {
       initializationProgress.value = authStore.initializationStep
     }
     
-    if (authStore.isInitialized) {
+    // 如果初始化完成，跳转到目标页面
+    if (authStore.isInitialized && !authStore.initializing) {
       clearInterval(checkInterval)
       redirectToTarget()
     }
   }, 500)
   
   // 如果已经初始化完成，直接跳转
-  if (authStore.isInitialized) {
+  if (authStore.isInitialized && !authStore.initializing) {
     redirectToTarget()
     return
   }
+  
+  // 设置超时，防止无限等待
+  setTimeout(() => {
+    if (checkInterval) {
+      clearInterval(checkInterval)
+      console.log('[LOADING] Initialization timeout')
+      // 强制标记为已初始化
+      authStore.setInitializing(false)
+      authStore.setInitialized(true)
+      redirectToTarget()
+    }
+  }, 10000) // 10秒超时
 })
 
 onUnmounted(() => {
@@ -49,8 +63,27 @@ onUnmounted(() => {
 function redirectToTarget() {
   const redirectPath = localStorage.getItem('redirectPath') || '/'
   console.log(`[LOADING] Redirecting to: ${redirectPath}`)
+  
+  // 清除重定向路径
   localStorage.removeItem('redirectPath')
-  router.replace(redirectPath)
+  
+  // 跳转到目标页面
+  router.push(redirectPath).catch(err => {
+    console.error('[LOADING] Navigation error:', err)
+    // 如果导航失败，跳转到首页
+    router.push('/')
+  })
+}
+
+function handleSkip() {
+  console.log('[LOADING] Skipping initialization')
+  if (checkInterval) {
+    clearInterval(checkInterval)
+  }
+  // 强制标记为已初始化
+  authStore.setInitializing(false)
+  authStore.setInitialized(true)
+  redirectToTarget()
 }
 </script>
 
@@ -61,7 +94,7 @@ function redirectToTarget() {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background-color: #f5f7fb;
+  background: #f5f7fb;
 }
 
 .loader {
@@ -83,6 +116,21 @@ p {
   color: #4361ee;
   font-size: 1.2rem;
   font-weight: 500;
-  margin: 5px 0;
+  margin: 10px 0;
+}
+
+.skip-button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background-color: #4361ee;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.skip-button:hover {
+  background-color: #3a56e0;
 }
 </style>

@@ -79,14 +79,24 @@ export const useAuthStore = defineStore('auth', () => {
    */
   async function initFromStorage() {
     try {
-      updateInitializationStep('正在加载用户数据...')
+      // 防抖处理
+      if (isInitialized.value || initializing.value) {
+        console.log('[Auth Store] Already initialized or initializing, skipping');
+        return Promise.resolve();
+      }
+      
+      initializing.value = true;
+      updateInitializationStep('开始初始化...');
+      
+      // 使用setTimeout创建微任务，避免阻塞主线程
+      await new Promise(resolve => setTimeout(resolve, 0));
       
       // 检查 localStorage 中的用户数据 - 添加数据验证
       const storedUser = localStorage.getItem('user')
       if (storedUser) {
         try {
           // 验证JSON格式有效性
-          updateInitializationStep('验证用户数据...')
+          updateInitializationStep('验证用户数据...');
           const parsedUser = JSON.parse(storedUser)
           
           // 基本数据验证
@@ -112,8 +122,6 @@ export const useAuthStore = defineStore('auth', () => {
           localStorage.removeItem('user')
           localStorage.removeItem('accessToken')
           localStorage.removeItem('refreshToken')
-          
-          throw new Error('用户数据损坏，已清除存储')
         }
       }
       
@@ -129,6 +137,7 @@ export const useAuthStore = defineStore('auth', () => {
       
       updateInitializationStep('完成初始化')
       isInitialized.value = true
+      return Promise.resolve();
     } catch (err) {
       console.error('初始化失败:', err)
       updateInitializationStep(`初始化出错: ${err.message}`)
@@ -136,8 +145,10 @@ export const useAuthStore = defineStore('auth', () => {
       // 即使出错也要标记为已初始化，避免无限循环
       isInitialized.value = true
       
-      // 抛出错误以便路由守卫捕获
-      throw err
+      // 不再抛出错误，避免阻塞应用
+      return Promise.resolve();
+    } finally {
+      initializing.value = false;
     }
   }
 

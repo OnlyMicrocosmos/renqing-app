@@ -145,56 +145,38 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes,
-  scrollBehavior(to, from, savedPosition) {
-    return savedPosition || { top: 0 }
-  }
+  history: createWebHistory(),
+  routes
 })
 
-// 初始化保护机制
-let initAttempts = 0
-const MAX_INIT_ATTEMPTS = 3
-const INIT_TIMEOUT = 5000 // 5秒超时
-
-// 路由守卫 - 认证检查 (增强版)
+// 全局前置守卫
 router.beforeEach(async (to, from, next) => {
   console.log(`[ROUTER] Navigating from ${from.path} to ${to.path}`)
+  console.log('[ROUTER] Route meta:', to.meta)
   
-  // 跳过初始化检查的路由
-  if (to.meta.skipInitCheck) {
-    console.log('[ROUTER] Skipping init check for route:', to.path)
-    return next()
-  }
-  
+  // 获取认证状态
   const authStore = useAuthStore()
-  console.log('[AUTH] Initialization state:', {
-    isInitialized: authStore.isInitialized,
-    initializing: authStore.initializing,
-    isAuthenticated: authStore.isAuthenticated
-  })
   
-  // 1. 初始化尝试次数保护
-  if (initAttempts > MAX_INIT_ATTEMPTS) {
-    console.warn(`[AUTH] 初始化尝试次数过多(${initAttempts}次)，强制继续导航`)
+  // 检查是否需要跳过初始化检查
+  if (to.meta?.skipInitCheck) {
+    console.log('[AUTH] Skipping initialization check for route:', to.path)
     return next()
   }
   
-  // 2. 初始化超时保护
-  const initTimeout = setTimeout(() => {
-    console.warn('[AUTH] 初始化超时，强制标记为已初始化')
-    authStore.setInitialized(true)
-  }, INIT_TIMEOUT)
-  
-  // 如果认证状态未初始化，尝试初始化
+  // 如果初始化未完成，开始初始化过程
   if (!authStore.isInitialized && !authStore.initializing) {
-    console.log('[AUTH] Starting initialization')
+    console.log('[AUTH] Starting initialization process')
     authStore.setInitializing(true)
-    initAttempts++
+    
+    // 设置初始化超时，避免无限等待
+    const initTimeout = setTimeout(() => {
+      console.error('[AUTH] Initialization timeout')
+      authStore.setInitializing(false)
+      authStore.setInitialized(true)
+    }, 5000) // 5秒超时
     
     try {
       await authStore.initFromStorage()
-      authStore.setInitialized(true)
       console.log('[AUTH] Initialization completed')
     } catch (error) {
       console.error('[AUTH] Initialization failed:', error)
@@ -212,11 +194,24 @@ router.beforeEach(async (to, from, next) => {
     } finally {
       clearTimeout(initTimeout)
       authStore.setInitializing(false)
+      authStore.setInitialized(true)
+
+      // 初始化完成后跳转到保存的路径
+      const redirectPath = localStorage.getItem('redirectPath')
+      if (redirectPath) {
+        localStorage.removeItem('redirectPath')
+        router.push(redirectPath)
+      }
     }
   }
+
+  // 如果初始化已完成但当前路由仍需要初始化检查，允许继续导航
+  if (authStore.isInitialized && to.meta?.skipInitCheck) {
+    return next()
+  }
   
-  // 如果初始化未完成，重定向到加载页面
-  if (!authStore.isInitialized && authStore.initializing) {
+  // 如果初始化正在进行中，重定向到加载页面
+  if (authStore.initializing) {
     console.log('[AUTH] Initialization in progress, redirecting to loader')
     
     // 保存当前路径，以便初始化完成后跳转回来

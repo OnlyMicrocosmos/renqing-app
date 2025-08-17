@@ -1,12 +1,14 @@
 <template>
   <!-- 当认证状态正在初始化时显示加载界面 -->
-  <div v-if="authStore.initializing" class="app-loading">
+  <div v-show="authStore.initializing" class="app-loading">
     <div class="loader"></div>
     <p>应用初始化中... {{ authStore.initializationStep }}</p>
+    <p>状态: initializing={{ authStore.initializing }}, isInitialized={{ authStore.isInitialized }}</p>
+    <button @click="forceCompleteInit">跳过初始化</button>
   </div>
   
   <!-- 初始化完成后显示应用内容 -->
-  <div v-else class="app-container">
+  <div v-show="!authStore.initializing" class="app-container">
     <!-- 顶部导航栏 -->
     <header class="app-header">
       <div class="container flex-between">
@@ -99,7 +101,7 @@
           <div class="loader"></div>
         </div>
         
-        <!-- 路由视图 -->
+        <!-- 路由视图容器 -->
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
             <component :is="Component" />
@@ -108,14 +110,16 @@
       </div>
     </main>
     
-    <!-- 页脚 -->
+    <!-- 应用页脚 -->
     <footer class="app-footer">
       <div class="container flex-between">
-        <p>© {{ currentYear }} 人情账本 - 记录每一次人情往来</p>
+        <div class="copyright">
+          &copy; {{ new Date().getFullYear() }} 人情账本. 保留所有权利.
+        </div>
         <div class="footer-links">
-          <router-link to="/about">关于我们</router-link>
-          <router-link to="/privacy">隐私政策</router-link>
-          <router-link to="/terms">服务条款</router-link>
+          <a href="#" @click.prevent="showAbout">关于</a>
+          <a href="#" @click.prevent="showHelp">帮助</a>
+          <a href="#" @click.prevent="showPrivacy">隐私政策</a>
         </div>
       </div>
     </footer>
@@ -123,91 +127,181 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+console.log('[APP] Component script setup started');
+
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
+import { useContactStore } from '@/stores/contact.store'
 import { useEventStore } from '@/stores/event.store'
 import dateUtil from '@/utils/date.js'
+import { setupReminders } from '@/utils/reminder'
+
+console.log('[APP] All imports successful');
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const contactStore = useContactStore()
 const eventStore = useEventStore()
+
+console.log('[APP] Stores initialized');
 
 // 响应式数据
 const showNotifications = ref(false)
 const loading = ref(false)
+const mainRoutes = ref([])
+const breadcrumbs = ref([])
+const pendingReminders = ref([])
+
+console.log('[APP] Reactive data initialized');
 
 // 计算属性
 const isAuthenticated = computed(() => authStore.isAuthenticated)
-const username = computed(() => authStore.fullName || authStore.user?.username || '用户')
-const userAvatar = computed(() => authStore.user?.avatar || require('@/assets/images/default-avatar.png'))
-const currentYear = computed(() => new Date().getFullYear())
+const username = computed(() => authStore.fullName || authStore.user?.username || '未知用户')
+const userAvatar = computed(() => authStore.user?.avatar || '/default-avatar.png')
 
-// 获取主导航路由
-const mainRoutes = computed(() => {
-  return router.options.routes.filter(route => 
-    route.meta?.icon && !route.meta.hide && route.meta.requiresAuth
-  )
-})
+console.log('[APP] Computed properties initialized');
 
-// 面包屑导航
-const breadcrumbs = computed(() => {
-  if (!route.meta.breadcrumb) return []
-  return route.meta.breadcrumb.map(item => ({
-    name: item.name,
-    path: item.path || ''
-  }))
-})
-
-// 待处理提醒
-const pendingReminders = computed(() => {
-  return eventStore.pendingReminders
-})
-
-// 格式化日期
-const formatDate = (date) => {
-  return dateUtil.format(date, 'yyyy-MM-dd')
-}
-
-// 切换通知面板显示状态
-const toggleNotifications = () => {
-  showNotifications.value = !showNotifications.value
-}
-
-// 标记提醒为已读
-const markAsRead = (reminder) => {
-  eventStore.markReminderAsRead(reminder.id)
-}
-
-// 用户登出
-const logout = async () => {
-  try {
-    await authStore.logout()
-    router.push('/login')
-  } catch (error) {
-    console.error('Logout failed:', error)
-  }
-}
-
-// 初始化检查
+// 生命周期钩子
 onMounted(() => {
-  console.log('[APP] Component mounted')
-  console.log('[APP] Auth store state:', {
+  console.log('[APP] Component mounted');
+  console.log('[APP] Initial auth store state:', {
     isInitialized: authStore.isInitialized,
     initializing: authStore.initializing,
-    isAuthenticated: authStore.isAuthenticated
-  })
+    isAuthenticated: authStore.isAuthenticated,
+    initializationStep: authStore.initializationStep
+  });
+  
+  // 初始化应用
+  initializeApp()
+  
+  // 设置提醒功能
+  setupReminders()
   
   // 如果尚未开始初始化，手动触发
   if (!authStore.isInitialized && !authStore.initializing) {
     console.log('[APP] Triggering initialization from App.vue')
     authStore.setInitializing(true)
+    
+    // 设置初始化超时定时器
+    const initTimeout = setupInitializationTimeout(5000)
+    
     authStore.initFromStorage().finally(() => {
-      authStore.setInitializing(false)
-    })
+      clearTimeout(initTimeout)
+      authStore.setInitializing(false);
+      console.log('[APP] Initialization completed', {
+        isInitialized: authStore.isInitialized,
+        isAuthenticated: authStore.isAuthenticated
+      });
+    });
+  }
+  
+  /**
+   * 设置初始化超时处理
+   * @param {number} timeout - 超时时间（毫秒）
+   * @returns {number} - 定时器ID
+   */
+  function setupInitializationTimeout(timeout) {
+    console.log(`[APP] Setting up initialization timeout for ${timeout}ms`)
+    return setTimeout(() => {
+      console.log('[APP] Initialization timeout, forcing completion');
+      authStore.setInitializing(false);
+      authStore.setInitialized(true);
+    }, timeout);
   }
 })
+
+onUnmounted(() => {
+  console.log('[APP] Component unmounted');
+})
+
+// 方法定义
+async function initializeApp() {
+  console.log('[APP] Initializing app data');
+  try {
+    loading.value = true
+    
+    // 初始化联系人和事件数据
+    if (authStore.isAuthenticated) {
+      console.log('[APP] User is authenticated, loading contacts and events');
+      await Promise.all([
+        contactStore.loadContacts(),
+        eventStore.loadEvents()
+      ])
+    }
+    
+    // 更新路由信息
+    updateNavigation()
+  } catch (error) {
+    console.error('[APP] 初始化应用数据失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+function updateNavigation() {
+  console.log('[APP] Updating navigation');
+  
+  // 主要路由
+  mainRoutes.value = router.options.routes.filter(route => 
+    route.meta?.requiresAuth && route.meta?.icon
+  )
+  
+  // 面包屑导航
+  const matched = route.matched.filter(item => item.meta?.title)
+  breadcrumbs.value = matched.map(item => ({
+    name: item.meta.title,
+    path: item.path
+  }))
+  
+  console.log('[APP] Navigation updated', {
+    mainRoutesCount: mainRoutes.value.length,
+    breadcrumbsCount: breadcrumbs.value.length
+  });
+}
+
+function toggleNotifications() {
+  showNotifications.value = !showNotifications.value
+  console.log('[APP] Notifications toggled:', showNotifications.value);
+}
+
+function markAsRead(reminder) {
+  console.log('[APP] Marking reminder as read:', reminder.id);
+  eventStore.markReminderAsRead(reminder.id)
+}
+
+function logout() {
+  console.log('[APP] User logging out');
+  authStore.logout()
+  router.push('/login')
+}
+
+function formatDate(date) {
+  return dateUtil.format(date, 'yyyy-MM-dd')
+}
+
+function showAbout() {
+  console.log('[APP] Showing about page');
+  router.push('/about')
+}
+
+function showHelp() {
+  console.log('[APP] Showing help page');
+  router.push('/help')
+}
+
+function showPrivacy() {
+  console.log('[APP] Showing privacy policy');
+  router.push('/privacy')
+}
+
+// 强制完成初始化的函数
+function forceCompleteInit() {
+  console.log('[APP] Forcing initialization completion');
+  authStore.setInitializing(false);
+  authStore.setInitialized(true);
+}
 </script>
 
 <style>
@@ -253,6 +347,16 @@ html, body {
   color: #4361ee;
   font-size: 1.2rem;
   font-weight: 500;
+}
+
+.app-loading button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background-color: #4361ee;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 @keyframes spin {
