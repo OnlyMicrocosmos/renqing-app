@@ -1,5 +1,5 @@
 const DB_NAME = 'HumanAccountDB'
-const DB_VERSION = 3
+const DB_VERSION = 4
 
 // 数据库实例
 let dbInstance = null
@@ -82,7 +82,7 @@ export const initDB = () => {
         }
       }
       
-      // 版本3升级：添加同步队列
+      // 版本3升级：添加同步队列和auth存储
       if (oldVersion < 3) {
         if (!db.objectStoreNames.contains('syncQueue')) {
           const syncQueueStore = db.createObjectStore('syncQueue', { 
@@ -95,6 +95,36 @@ export const initDB = () => {
           syncQueueStore.createIndex('createdAt', 'createdAt', { unique: false })
           
           console.log('创建 syncQueue 存储')
+        }
+        
+        // 添加 auth 对象存储
+        if (!db.objectStoreNames.contains('auth')) {
+          const authStore = db.createObjectStore('auth', { keyPath: 'id', autoIncrement: true })
+          authStore.createIndex('username', 'username', { unique: true })
+          authStore.createIndex('email', 'email', { unique: true })
+          console.log('创建 auth 存储')
+        }
+      }
+      
+      // 版本4升级：确保auth存储有正确的索引
+      if (oldVersion < 4) {
+        // 获取事务对象
+        const transaction = event.target.transaction
+        
+        if (db.objectStoreNames.contains('auth')) {
+          const authStore = transaction.objectStore('auth')
+          
+          // 确保有username索引
+          if (!authStore.indexNames.contains('username')) {
+            authStore.createIndex('username', 'username', { unique: true })
+          }
+          
+          // 确保有email索引
+          if (!authStore.indexNames.contains('email')) {
+            authStore.createIndex('email', 'email', { unique: true })
+          }
+          
+          console.log('升级 auth 存储索引')
         }
       }
     }

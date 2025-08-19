@@ -1,28 +1,52 @@
 import { createApp } from 'vue'
-import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
+import { createPinia } from 'pinia'
+import { useAuthStore } from './stores/auth.store'
 
-// 导入全局样式
-import '@/assets/styles/main.css'
-
-// 立即创建 Vue 应用实例
+// 创建应用实例
 const app = createApp(App)
 
-// 使用 Pinia 状态管理
+// 创建Pinia实例
 const pinia = createPinia()
 app.use(pinia)
 
-// 使用路由
+// 使用路由器
 app.use(router)
 
-// 注册全局错误处理
-app.config.errorHandler = (err) => {
-  console.error('Uncaught error:', err)
-}
+// 全局错误处理
+app.config.errorHandler = (err, vm, info) => {
+  console.error('[Vue] 全局错误', { err, vm, info });
+  
+  // 显示友好错误界面
+  const appEl = document.getElementById('app');
+  if (appEl) {
+    appEl.innerHTML = `
+      <div style="padding: 20px; color: #721c24; background-color: #f8d7da;">
+        <h2>应用程序错误</h2>
+        <p><strong>${err.message}</strong></p>
+        <p>发生在: ${info}</p>
+        <button style="padding: 10px; margin-top: 20px;" onclick="location.reload()">
+          重新加载应用
+        </button>
+      </div>
+    `;
+  }
+};
 
-// 立即挂载应用
+// 添加未捕获异常处理
+window.addEventListener('error', (event) => {
+  console.error('[Window] 未捕获错误', event.error);
+});
+
+// 启动应用
 app.mount('#app')
+
+// 在应用启动前确保认证状态已初始化
+const authStore = useAuthStore()
+authStore.initFromStorage().catch(error => {
+  console.error('认证状态初始化失败:', error)
+})
 
 // --- 数据库初始化 ---
 import { initDB } from '@/services/storage/indexedDB'

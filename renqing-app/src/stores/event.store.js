@@ -28,6 +28,9 @@ export const useEventStore = defineStore('event', {
       try {
         this.events = await getEvents();
         this.lastLoaded = new Date().toISOString();
+        
+        // ✅ 修复：通知所有订阅者数据已更新
+        this.$patch({ events: this.events });
         return this.events;
       } catch (error) {
         this.error = '加载事件失败: ' + error.message;
@@ -209,6 +212,48 @@ export const useEventStore = defineStore('event', {
       
       // 按日期倒序排序
       return events.sort((a, b) => new Date(b.date) - new Date(a.date));
+    },
+
+    /**
+     * 获取最近事件
+     * @returns {Array} 最近的5个事件
+     */
+    recentEvents: (state) => {
+      return [...state.events]
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 5)
+    },
+    
+    /**
+     * 计算总送礼金额
+     * @returns {number} 送礼总额
+     */
+    totalGiven: (state) => {
+      return state.events
+        .filter(e => e.type === 'given')
+        .reduce((sum, e) => sum + (e.value || 0), 0)
+    },
+    
+    /**
+     * 计算总收礼金额
+     * @returns {number} 收礼总额
+     */
+    totalReceived: (state) => {
+      return state.events
+        .filter(e => e.type === 'received')
+        .reduce((sum, e) => sum + (e.value || 0), 0)
+    },
+    
+    /**
+     * 计算净收支
+     * @returns {number} 净收支金额
+     */
+    totalBalance: (state) => {
+      return state.events.reduce((total, event) => {
+        return event.type === 'received' ? 
+          total + (event.value || 0) : 
+          total - (event.value || 0)
+      }, 0)
     },
 
     /**

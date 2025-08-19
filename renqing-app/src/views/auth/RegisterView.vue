@@ -119,14 +119,20 @@ const handleRegister = async () => {
   loading.value = true
   
   try {
-    // 模拟注册过程
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // 实际调用注册服务
+    const { useAuthStore } = await import('@/stores/auth.store')
+    const authStore = useAuthStore()
     
-    // 模拟注册成功
-    localStorage.setItem('user-token', 'fake-jwt-token')
+    // 调用注册方法
+    await authStore.register({
+      username: user.username,
+      email: user.email,
+      password: user.password,
+      confirmPassword: confirmPassword.value
+    })
     
-    // 跳转到仪表盘
-    router.push('/dashboard')
+    // 注册成功后先跳转到登录页面
+    router.push('/login')
   } catch (error) {
     alert('注册失败: ' + (error.message || '未知错误'))
   } finally {

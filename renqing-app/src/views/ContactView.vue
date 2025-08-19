@@ -51,7 +51,7 @@
         </div>
         <ContactForm 
           :contact="editingContact" 
-          @save="handleSave" 
+          @submit="handleSave" 
           @cancel="closeModal"
         />
       </div>
@@ -85,11 +85,13 @@ onMounted(async () => {
 
 const filteredContacts = computed(() => {
   if (!searchQuery.value) {
-    return contactStore.contacts
+    // 确保 contacts 是一个数组，避免 undefined
+    return contactStore.contacts || []
   }
   
   const query = searchQuery.value.toLowerCase()
-  return contactStore.contacts.filter(contact => 
+  // 确保 contacts 是一个数组，避免 undefined
+  return (contactStore.contacts || []).filter(contact => 
     contact.name.toLowerCase().includes(query) ||
     (contact.phone && contact.phone.includes(query)) ||
     (contact.relation && contact.relation.toLowerCase().includes(query))
@@ -116,9 +118,11 @@ const handleSave = async (contactData) => {
     if (showEditForm.value) {
       await contactStore.updateContact(editingContact.value.id, contactData)
     } else {
-      await contactStore.addContact(contactData)
+      await contactStore.createContact(contactData)
     }
     closeModal()
+    // 添加成功反馈
+    alert('联系人保存成功')
   } catch (err) {
     alert('保存联系人失败: ' + err.message)
   }

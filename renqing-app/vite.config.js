@@ -1,28 +1,24 @@
 import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import { resolve } from 'path'
+import vue from '@vitejs/plugin-vue' // 添加 Vue 插件
+import path from 'path'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue() // 添加 Vue 插件
+  ],
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src')
+      '@': path.resolve(__dirname, './src'),
+      '@assets': path.resolve(__dirname, './src/assets')
     }
   },
-  server: {
-    port: 3001,
-    open: true,
-    // 添加以下关键配置
-    hmr: {
-      protocol: 'ws',
-      host: 'localhost'
-    },
-    middlewareMode: false
+  define: {
+    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
+    __VUE_PROD_DEVTOOLS__: 'false'
   },
-  // 添加根目录显式声明
-  root: resolve(__dirname, './'),
-  // 添加优化依赖配置
-  optimizeDeps: {
-    include: ['vue', 'vue-router']
+  server: {
+    host: 'localhost',
+    port: 3000,
+    open: true // 自动打开浏览器
   }
 })

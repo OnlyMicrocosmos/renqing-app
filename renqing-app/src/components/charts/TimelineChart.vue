@@ -20,244 +20,213 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, computed, nextTick } from 'vue'
 import * as echarts from 'echarts'
-import { format } from 'date-fns'
+import { useEventStore } from '@/stores/event.store' // ✅ 添加缺失的导入
+
+const chart = ref(null)
+const data = ref([]) // 初始化为空数组，避免 undefined
+const chartEl = ref(null)
 
 const props = defineProps({
   events: {
     type: Array,
-    required: true,
     default: () => []
   }
 })
 
-const chartEl = ref(null)
-let chartInstance = null
-const timeRange = ref('30') // 默认显示最近30天
-
-// 计算是否有数据用于展示
 const hasData = computed(() => {
-  return filteredEvents.value.length > 0
+  return filteredData.value && filteredData.value.length > 0
 })
 
-// 根据时间范围过滤事件
-const filteredEvents = computed(() => {
-  const now = new Date()
-  let startDate = new Date()
-  
-  if (props.events.length === 0) return []
-  
-  switch (timeRange.value) {
-    case '7':
-      startDate.setDate(now.getDate() - 7)
-      break
-    case '30':
-      startDate.setDate(now.getDate() - 30)
-      break
-    case '90':
-      startDate.setDate(now.getDate() - 90)
-      break
-    case 'all':
-      // 全部时间，不需要过滤
-      return [...props.events]
-    default:
-      startDate.setDate(now.getDate() - 30)
+const timeRange = ref('30')
+
+const filteredData = computed(() => {
+  if (timeRange.value === 'all') {
+    return data.value;
   }
   
-  return props.events.filter(event => {
-    const eventDate = new Date(event.date)
-    return eventDate >= startDate
-  })
-})
+  const now = new Date().getTime();
+  const days = parseInt(timeRange.value);
+  const startTime = now - (days * 24 * 60 * 60 * 1000);
+  
+  return data.value.filter(item => item.time >= startTime);
+});
 
-// 准备时间线数据
-const prepareTimelineData = (events) => {
-  return events.map(event => {
-    return {
-      name: event.description,
-      value: [
-        event.date, // X轴 - 时间
-        event.value, // Y轴 - 金额
-        event.value, // 用于确定点的大小
-        event // 原始事件数据
-      ]
-    }
-  })
+const color = (type) => {
+  switch (type) {
+    case 'given':
+      return '#ff6384'
+    case 'received':
+      return '#36a2eb'
+    default:
+      return '#ccc'
+  }
 }
 
-// 初始化图表
+// ✅ 修复：定义 initChart 函数并初始化 ECharts 实例
 const initChart = () => {
   if (!chartEl.value || !hasData.value) return
   
-  // 销毁现有实例
-  if (chartInstance) {
-    chartInstance.dispose()
-  }
-  
-  // 创建新实例
-  chartInstance = echarts.init(chartEl.value)
-  
-  // 获取过滤后的事件数据
-  const timelineData = prepareTimelineData(filteredEvents.value)
-  
-  // 配置图表选项
-  const option = {
-    tooltip: {
-      trigger: 'axis',
-      formatter: function(params) {
-        const event = params[0].data.event
-        const date = format(new Date(event.date), 'yyyy年MM月dd日')
-        const type = event.type === 'given' ? '送礼' : '收礼'
-        const sign = event.type === 'given' ? '-' : '+'
-        const valueColor = event.type === 'given' ? '#ef4444' : '#10b981'
-        
-        return `
-          <div style="margin-bottom: 5px; font-weight: 600">${date}</div>
-          <div style="display: flex; justify-content: space-between; margin-bottom: 3px">
-            <span>${event.description}</span>
-            <span style="color: ${valueColor}; font-weight: 600">${sign}¥${event.value.toFixed(2)}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between">
-            <span>类型:</span>
-            <span>${type}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between">
-            <span>联系人:</span>
-            <span>${event.contactName || '未知'}</span>
-          </div>
-          ${event.notes ? `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e2e8f0">备注: ${event.notes}</div>` : ''}
-        `
-      }
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      top: '15%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'time',
-      axisLine: {
-        lineStyle: {
-          color: '#cbd5e1'
-        }
-      },
-      axisLabel: {
-        color: '#64748b',
-        formatter: function(value) {
-          return format(new Date(value), 'MM/dd')
-        }
-      },
-      splitLine: {
-        show: false
-      }
-    },
-    yAxis: {
-      type: 'value',
-      name: '金额 (¥)',
-      nameTextStyle: {
-        color: '#64748b',
-        padding: [0, 0, 0, 10]
-      },
-      axisLine: {
-        show: false
-      },
-      axisLabel: {
-        color: '#64748b'
-      },
-      splitLine: {
-        lineStyle: {
-          color: '#f1f5f9'
-        }
-      }
-    },
-    dataZoom: [
-      {
-        type: 'inside',
-        start: 0,
-        end: 100,
-        minValueSpan: 3600 * 24 * 1000 * 7 // 最小缩放范围为7天
-      }
-    ],
-    series: [
-      {
-        name: '人情事件',
-        type: 'scatter',
-        symbolSize: function(data) {
-          // 根据金额大小调整点的大小
-          return Math.min(Math.max(data[2] / 50, 8), 20)
+  try {
+    // 销毁现有图表实例
+    if (chart.value) {
+      chart.value.dispose()
+    }
+    
+    // 创建新的 ECharts 实例
+    chart.value = echarts.init(chartEl.value)
+    
+    // 设置图表选项
+    const option = {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'shadow'
         },
-        data: timelineData,
-        itemStyle: {
-          color: function(params) {
-            return params.data.event.type === 'given' ? '#ef4444' : '#10b981'
+        formatter: function(params) {
+          const event = params[0].data
+          return `
+            <div style="padding: 5px;">
+              <strong>${event.name}</strong><br/>
+              ${event.typeText}: ¥${event.amount}<br/>
+              日期: ${new Date(event.time).toLocaleDateString()}
+            </div>
+          `
+        }
+      },
+      xAxis: {
+        type: 'time',
+        splitLine: {
+          show: false
+        },
+        axisLabel: {
+          formatter: '{yyyy}-{MM}-{dd}'
+        }
+      },
+      yAxis: {
+        type: 'value',
+        splitLine: {
+          show: true,
+          lineStyle: {
+            color: '#eee'
+          }
+        },
+        axisLabel: {
+          formatter: '{value}¥'
+        }
+      },
+      series: [
+        {
+          name: '送礼',
+          type: 'line',
+          data: filteredData.value.filter(d => d.type === 'given').map(d => ({
+            ...d,
+            value: d.amount
+          })),
+          lineStyle: {
+            color: '#ff6384'
           },
-          borderColor: '#fff',
-          borderWidth: 1
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(255, 99, 132, 0.3)' },
+              { offset: 1, color: 'rgba(255, 99, 132, 0)' }
+            ])
+          }
         },
-        emphasis: {
-          itemStyle: {
-            shadowBlur: 10,
-            shadowColor: 'rgba(0, 0, 0, 0.3)'
+        {
+          name: '收礼',
+          type: 'line',
+          data: filteredData.value.filter(d => d.type === 'received').map(d => ({
+            ...d,
+            value: d.amount
+          })),
+          lineStyle: {
+            color: '#36a2eb'
+          },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(54, 162, 235, 0.3)' },
+              { offset: 1, color: 'rgba(54, 162, 235, 0)' }
+            ])
           }
         }
+      ]
+    }
+    
+    chart.value.setOption(option)
+  } catch (error) {
+    console.error('ECharts initialization error:', error)
+  }
+}
+
+// ✅ 修复：确保在数据变化时重新初始化图表
+watch(
+  () => props.events,
+  (newEvents) => {
+    if (!newEvents || !Array.isArray(newEvents)) return
+
+    data.value = newEvents.map(event => {
+      const typeText = event.type === 'given' ? '送礼' : event.type === 'received' ? '收礼' : '其他'
+      return {
+        ...event,
+        time: event.date ? new Date(event.date).getTime() : Date.now(),
+        amount: event.value || 0,
+        name: event.title || event.name || '未知事件',
+        typeText: typeText
       }
-    ]
-  }
-  
-  // 应用配置
-  chartInstance.setOption(option)
-  
-  // 添加点击事件
-  chartInstance.on('click', function(params) {
-    console.log('点击事件:', params.data.event)
-    // 这里可以扩展为打开事件详情
-  })
-}
+    })
 
-// 响应式调整图表大小
-const resizeChart = () => {
-  if (chartInstance) {
-    chartInstance.resize()
-  }
-}
+    // ✅ 使用 nextTick 确保 DOM 更新后才初始化图表
+    nextTick(() => {
+      initChart()
+    })
+  },
+  { immediate: true }
+)
 
-// 监听事件数据变化
-watch(() => props.events, () => {
-  if (hasData.value) {
-    initChart()
-  } else if (chartInstance) {
-    chartInstance.dispose()
-    chartInstance = null
-  }
-}, { deep: true })
-
-// 监听时间范围变化
 watch(timeRange, () => {
-  if (hasData.value) {
-    initChart()
-  } else if (chartInstance) {
-    chartInstance.dispose()
-    chartInstance = null
-  }
+  initChart()
 })
 
-// 生命周期钩子
+// ✅ 修复：确保在组件挂载时获取最新数据
 onMounted(() => {
-  if (hasData.value) {
-    initChart()
+  // 确保在组件挂载时获取最新的事件数据
+  if (props.events.length === 0) {
+    // 如果传入的事件为空，尝试从 store 获取
+    const eventStore = useEventStore()
+    data.value = eventStore.events.map(event => {
+      const typeText = event.type === 'given' ? '送礼' : event.type === 'received' ? '收礼' : '其他'
+      return {
+        ...event,
+        time: event.date ? new Date(event.date).getTime() : Date.now(),
+        amount: event.value || 0,
+        name: event.title || event.name || '未知事件',
+        typeText: typeText
+      }
+    })
   }
-  window.addEventListener('resize', resizeChart)
+  
+  // ✅ 使用 nextTick 确保 DOM 渲染完成后再初始化图表
+  nextTick(() => {
+    initChart()
+  })
+  
+  window.addEventListener('resize', () => {
+    if (chart.value) {
+      chart.value.resize()
+    }
+  })
 })
 
 onBeforeUnmount(() => {
-  if (chartInstance) {
-    chartInstance.dispose()
-    chartInstance = null
+  if (chart.value) {
+    try {
+      chart.value.dispose()
+    } catch (e) {
+      console.warn('ECharts dispose error on unmount:', e)
+    }
   }
-  window.removeEventListener('resize', resizeChart)
 })
 </script>
 

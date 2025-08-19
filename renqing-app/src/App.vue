@@ -1,125 +1,117 @@
 <template>
   <div class="app-container">
-    <!-- 应用加载状态 -->
-    <div v-if="!appInitialized" class="app-loading">
-      <div class="loader"></div>
-      <p>应用初始化中...</p>
-    </div>
-    
-    <template v-else>
-      <!-- 顶部导航栏 -->
-      <header class="app-header">
-        <div class="container flex-between">
-          <!-- 品牌标识 -->
-          <router-link to="/" class="logo">
-            <i class="icon-gift"></i>
-            <span>人情账本</span>
+    <!-- 顶部导航栏 -->
+    <header class="app-header">
+      <div class="container flex-between">
+        <!-- 品牌标识 -->
+        <router-link to="/" class="logo">
+          <i class="icon-gift"></i>
+          <span>人情账本</span>
+        </router-link>
+        
+        <!-- 主导航（登录后显示） -->
+        <nav v-if="isAuthenticated" class="nav-menu">
+          <router-link v-for="route in mainRoutes" :key="route.name" :to="{ name: route.name }" class="nav-link">
+            <i :class="'icon-' + route.meta.icon"></i>
+            <span>{{ route.meta.title }}</span>
           </router-link>
-          
-          <!-- 主导航（登录后显示） -->
-          <nav v-if="isAuthenticated" class="nav-menu">
-            <router-link v-for="route in mainRoutes" :key="route.name" :to="{ name: route.name }" class="nav-link">
-              <i :class="'icon-' + route.meta.icon"></i>
-              <span>{{ route.meta.title }}</span>
-            </router-link>
-          </nav>
-          
-          <!-- 用户操作区 -->
-          <div class="user-actions">
-            <!-- 登录状态 -->
-            <template v-if="isAuthenticated">
-              <!-- 通知提醒 -->
-              <div class="notifications">
-                <button @click="toggleNotifications" class="notify-btn">
-                  <i class="icon-bell"></i>
-                  <span v-if="pendingReminders.length" class="badge">{{ pendingReminders.length }}</span>
-                </button>
-                <div v-if="showNotifications" class="notifications-panel">
-                  <h4>待处理提醒</h4>
-                  <div v-if="pendingReminders.length">
-                    <div v-for="reminder in pendingReminders" :key="reminder.id" class="notification-item">
-                      <div class="notification-content">
-                        <strong>{{ reminder.title }}</strong>
-                        <p>{{ reminder.message }}</p>
-                        <small>{{ formatDate(reminder.date) }}</small>
-                      </div>
-                      <button @click="markAsRead(reminder)" class="btn-icon">
-                        <i class="icon-check"></i>
-                      </button>
+        </nav>
+        
+        <!-- 用户操作区 -->
+        <div class="user-actions">
+          <!-- 登录状态 -->
+          <template v-if="isAuthenticated">
+            <!-- 通知提醒 -->
+            <div class="notifications">
+              <button @click="toggleNotifications" class="notify-btn">
+                <i class="icon-bell"></i>
+                <span v-if="pendingReminders.length" class="badge">{{ pendingReminders.length }}</span>
+              </button>
+              <div v-if="showNotifications" class="notifications-panel">
+                <h4>待处理提醒</h4>
+                <div v-if="pendingReminders.length">
+                  <div v-for="reminder in pendingReminders" :key="reminder.id" class="notification-item">
+                    <div class="notification-content">
+                      <strong>{{ reminder.title }}</strong>
+                      <p>{{ reminder.message }}</p>
+                      <small>{{ formatDate(reminder.date) }}</small>
                     </div>
-                  </div>
-                  <div v-else class="empty-notifications">
-                    没有待处理的提醒
-                  </div>
-                </div>
-              </div>
-              
-              <!-- 用户信息 -->
-              <div class="user-profile">
-                <img :src="userAvatar" class="avatar" alt="用户头像" />
-                <div class="user-info">
-                  <span class="username">{{ username }}</span>
-                  <div class="user-menu">
-                    <router-link to="/settings/profile">个人资料</router-link>
-                    <router-link to="/settings">系统设置</router-link>
-                    <button @click="logout" class="logout-btn">退出登录</button>
+                    <button @click="markAsRead(reminder)" class="btn-icon">
+                      <i class="icon-check"></i>
+                    </button>
                   </div>
                 </div>
+                <div v-else class="empty-notifications">
+                  没有待处理的提醒
+                </div>
               </div>
-            </template>
+            </div>
             
-            <!-- 未登录状态 -->
-            <template v-else>
-              <router-link to="/login" class="btn btn-outline">登录</router-link>
-              <router-link to="/register" class="btn btn-primary">注册</router-link>
-            </template>
-          </div>
-        </div>
-      </header>
-      
-      <!-- 面包屑导航 -->
-      <div v-if="isAuthenticated && breadcrumbs.length" class="breadcrumbs">
-        <div class="container">
-          <router-link v-for="(crumb, index) in breadcrumbs" 
-                      :key="index"
-                      :to="crumb.path" 
-                      class="breadcrumb-item"
-                      :class="{ 'active': index === breadcrumbs.length - 1 }">
-            {{ crumb.name }}
-            <span v-if="index < breadcrumbs.length - 1" class="divider">/</span>
-          </router-link>
+            <!-- 用户信息 -->
+            <div class="user-profile">
+              <img :src="userAvatar" class="avatar" alt="用户头像" />
+              <div class="user-info">
+                <span class="username">{{ username }}</span>
+                <div class="user-menu">
+                  <router-link to="/settings/profile">个人资料</router-link>
+                  <router-link to="/settings">系统设置</router-link>
+                  <button @click="logout" class="logout-btn">退出登录</button>
+                </div>
+              </div>
+            </div>
+          </template>
+          
+          <!-- 未登录状态 -->
+          <template v-else>
+            <router-link to="/login" class="btn btn-outline">登录</router-link>
+            <router-link to="/register" class="btn btn-primary">注册</router-link>
+          </template>
         </div>
       </div>
-      
-      <!-- 主要内容区 -->
-      <main class="app-main">
-        <div class="container">
-          <!-- 加载状态指示器 -->
-          <div v-if="loading" class="loading-overlay">
-            <div class="loader"></div>
-          </div>
-          
-          <!-- 路由视图 -->
-          <router-view v-slot="{ Component }">
-            <transition name="fade" mode="out-in">
-              <component :is="Component" />
-            </transition>
-          </router-view>
+    </header>
+    
+    <!-- 面包屑导航 -->
+    <div v-if="isAuthenticated && breadcrumbs.length" class="breadcrumbs">
+      <div class="container">
+        <router-link v-for="(crumb, index) in breadcrumbs" 
+                    :key="index"
+                    :to="crumb.path" 
+                    class="breadcrumb-item"
+                    :class="{ 'active': index === breadcrumbs.length - 1 }">
+          {{ crumb.name }}
+          <span v-if="index < breadcrumbs.length - 1" class="divider">/</span>
+        </router-link>
+      </div>
+    </div>
+    
+    <!-- 主要内容区 -->
+    <main class="app-main">
+      <div class="container">
+        <!-- 加载状态指示器 -->
+        <div v-if="loading" class="loading-overlay">
+          <div class="loader"></div>
         </div>
-      </main>
-      
-      <!-- 页脚 -->
-      <footer class="app-footer">
-        <div class="container flex-between">
-          <p>© {{ currentYear }} 人情账本 - 记录每一次人情往来</p>
-          <div class="footer-links">
-            <router-link to="/about">关于我们</router-link>
-            <router-link to="/privacy">隐私政策</router-link>
-            <router-link to="/terms">服务条款</router-link>
-          </div>
+        
+        <!-- 路由视图 -->
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </div>
+    </main>
+    
+    <!-- 页脚 -->
+    <footer class="app-footer">
+      <div class="container flex-between">
+        <p>© {{ currentYear }} 人情账本 - 记录每一次人情往来</p>
+        <div class="footer-links">
+          <router-link to="/about">关于我们</router-link>
+          <router-link to="/privacy">隐私政策</router-link>
+          <router-link to="/terms">服务条款</router-link>
         </div>
-      </footer>
-    </template>
+      </div>
+    </footer>
   </div>
 </template>
 
@@ -130,6 +122,9 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useEventStore } from '@/stores/event.store'
 import dateUtil from '@/utils/date.js'
 
+// 导入默认头像图片 - 使用正确的路径
+import defaultAvatar from '@/assets/images/default-avatar.png' // 修正路径
+
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
@@ -138,12 +133,11 @@ const eventStore = useEventStore()
 // 响应式数据
 const showNotifications = ref(false)
 const loading = ref(false)
-const appInitialized = ref(false)
 
 // 计算属性
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const username = computed(() => authStore.fullName || authStore.user?.username || '用户')
-const userAvatar = computed(() => authStore.user?.avatar || require('@/assets/images/default-avatar.png'))
+const userAvatar = computed(() => authStore.user?.avatar || defaultAvatar)
 const currentYear = computed(() => new Date().getFullYear())
 
 // 获取主导航路由
@@ -164,7 +158,7 @@ const breadcrumbs = computed(() => {
 
 // 待处理提醒
 const pendingReminders = computed(() => {
-  return eventStore.pendingReminders
+  return eventStore.pendingReminders || [] // 添加默认值防止undefined
 })
 
 // 监听路由变化显示加载状态
@@ -200,9 +194,7 @@ const logout = () => {
 
 // 应用初始化完成
 onMounted(() => {
-  setTimeout(() => {
-    appInitialized.value = true
-  }, 800)
+  console.log('App mounted')
 })
 </script>
 
@@ -224,37 +216,6 @@ body, html {
 </style>
 
 <style scoped>
-/* 应用加载状态 */
-.app-loading {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background: #f5f7fb;
-}
-
-.app-loading .loader {
-  border: 4px solid rgba(67, 97, 238, 0.2);
-  border-radius: 50%;
-  border-top: 4px solid #4361ee;
-  width: 50px;
-  height: 50px;
-  animation: spin 1s linear infinite;
-}
-
-.app-loading p {
-  margin-top: 20px;
-  color: #4361ee;
-  font-size: 1.2rem;
-  font-weight: 500;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
 /* 基础变量 */
 :root {
   --primary: #4361ee;
@@ -417,7 +378,9 @@ body, html {
 
 .notification-item {
   display: flex;
-  padding: 10px 0;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
   border-bottom: 1px solid var(--light-gray);
 }
 
@@ -427,15 +390,18 @@ body, html {
 
 .notification-content {
   flex: 1;
+  margin-right: 10px;
 }
 
 .notification-content strong {
-  color: var(--dark);
+  display: block;
+  margin-bottom: 5px;
 }
 
 .notification-content p {
-  margin: 5px 0;
+  margin: 0 0 5px 0;
   font-size: 0.9rem;
+  color: var(--gray);
 }
 
 .notification-content small {
@@ -446,45 +412,37 @@ body, html {
 .btn-icon {
   background: none;
   border: none;
-  color: var(--gray);
+  color: var(--success);
   cursor: pointer;
   font-size: 1rem;
-  transition: var(--transition);
-}
-
-.btn-icon:hover {
-  color: var(--primary);
+  margin-left: 10px;
 }
 
 .empty-notifications {
   text-align: center;
-  padding: 20px;
   color: var(--gray);
+  padding: 20px 0;
 }
 
-/* 用户资料 */
+/* 用户信息 */
 .user-profile {
   display: flex;
   align-items: center;
+  cursor: pointer;
   position: relative;
 }
 
 .avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
-  cursor: pointer;
-}
-
-.user-info {
-  margin-left: 10px;
+  margin-right: 8px;
 }
 
 .username {
   font-weight: 500;
   color: var(--dark);
-  cursor: pointer;
 }
 
 .user-menu {
@@ -493,160 +451,161 @@ body, html {
   right: 0;
   background: white;
   border-radius: var(--border-radius);
-  box-shadow: var(--box-shadow);
-  padding: 10px 0;
-  width: 160px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  min-width: 150px;
   display: none;
-  z-index: 100;
+  z-index: 1000;
 }
 
 .user-profile:hover .user-menu {
   display: block;
 }
 
-.user-menu a, .user-menu button {
+.user-menu a,
+.user-menu button {
   display: block;
   width: 100%;
-  padding: 8px 15px;
   text-align: left;
+  padding: 8px 12px;
   text-decoration: none;
   color: var(--dark);
   background: none;
   border: none;
   cursor: pointer;
-  transition: var(--transition);
+  font-size: 0.9rem;
+  border-radius: 4px;
+  margin-bottom: 4px;
 }
 
-.user-menu a:hover, .user-menu button:hover {
+.user-menu a:hover,
+.user-menu button:hover {
   background-color: var(--light);
 }
 
-.logout-btn {
+.user-menu button {
   color: var(--danger);
-  border-top: 1px solid var(--light-gray);
-  margin-top: 5px;
-  padding-top: 10px;
 }
 
 /* 面包屑导航 */
 .breadcrumbs {
   background-color: white;
   padding: 12px 0;
-  border-bottom: 1px solid var(--light-gray);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .breadcrumb-item {
-  text-decoration: none;
   color: var(--gray);
+  text-decoration: none;
   font-size: 0.9rem;
-  transition: var(--transition);
+}
+
+.breadcrumb-item.active {
+  color: var(--dark);
+  font-weight: 500;
 }
 
 .breadcrumb-item:hover {
   color: var(--primary);
 }
 
-.breadcrumb-item.active {
-  color: var(--dark);
-  font-weight: 500;
-  pointer-events: none;
-}
-
 .divider {
   margin: 0 8px;
-  color: var(--light-gray);
+  color: var(--gray);
 }
 
-/* 主内容区 */
+/* 主要内容区 */
 .app-main {
   flex: 1;
-  padding: 30px 0;
+  padding: 20px 0;
 }
 
-/* 加载动画 */
 .loading-overlay {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100%;
+  height: 100%;
   background: rgba(255, 255, 255, 0.8);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 2000;
+  z-index: 9999;
 }
 
-.loading-overlay .loader {
+.loader {
   border: 4px solid rgba(67, 97, 238, 0.2);
   border-radius: 50%;
-  border-top: 4px solid var(--primary);
-  width: 50px;
-  height: 50px;
+  border-top: 4px solid #4361ee;
+  width: 40px;
+  height: 40px;
   animation: spin 1s linear infinite;
 }
 
-/* 页面切换动画 */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-/* 页脚样式 */
+/* 页脚 */
 .app-footer {
   background-color: white;
-  padding: 20px 0;
   border-top: 1px solid var(--light-gray);
-  color: var(--gray);
+  padding: 20px 0;
   font-size: 0.9rem;
+  color: var(--gray);
 }
 
 .footer-links {
   display: flex;
-  gap: 15px;
+  gap: 20px;
 }
 
 .footer-links a {
   color: var(--gray);
   text-decoration: none;
-  transition: var(--transition);
 }
 
 .footer-links a:hover {
   color: var(--primary);
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .nav-menu {
-    display: none;
-  }
-  
-  .logo span {
-    display: none;
-  }
-  
-  .user-actions {
-    gap: 8px;
-  }
-  
-  .username {
-    display: none;
-  }
-  
-  .notifications-panel {
-    width: 280px;
-    right: -20px;
-  }
-  
-  .footer-links {
-    flex-direction: column;
-    gap: 5px;
-  }
+/* 按钮样式 */
+.btn {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: var(--border-radius);
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background-color: var(--white-color);
+  color: var(--text-color-primary);
+  transition: var(--transition);
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: var(--white-color);
+  border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-light);
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+
+.btn-outline:hover {
+  background-color: rgba(67, 97, 238, 0.1);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>

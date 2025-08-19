@@ -12,6 +12,12 @@ const apiClient = axios.create({
   }
 })
 
+// 开发环境代理配置
+if (import.meta.env.DEV) {
+  // 修改为正确的代理配置
+  apiClient.defaults.baseURL = '/api'
+}
+
 // 请求拦截器 - 添加认证 token
 apiClient.interceptors.request.use(
   async (config) => {

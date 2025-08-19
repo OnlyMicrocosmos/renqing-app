@@ -58,20 +58,35 @@ export const register = async (userData) => {
 // 用户登录
 export const login = async (credentials) => {
   try {
-    // 基本验证
-    if (!validateEmail(credentials.email)) {
-      throw new Error('请输入有效的邮箱地址')
+    // 基本验证 - 支持用户名或邮箱登录
+    if (!credentials.email && !credentials.username) {
+      throw new Error('请输入用户名或邮箱')
     }
     
     if (!credentials.password) {
       throw new Error('请输入密码')
     }
     
-    // 调用API
-    const response = await apiClient.post('/auth/login', {
-      email: credentials.email,
+    // 准备请求数据
+    const requestData = {
       password: credentials.password
-    })
+    }
+    
+    // 根据输入的是邮箱还是用户名来设置相应的字段
+    if (credentials.email) {
+      if (!validateEmail(credentials.email)) {
+        throw new Error('请输入有效的邮箱地址')
+      }
+      requestData.email = credentials.email
+    } else if (credentials.username) {
+      if (credentials.username.trim().length === 0) {
+        throw new Error('请输入有效的用户名')
+      }
+      requestData.username = credentials.username
+    }
+    
+    // 调用API
+    const response = await apiClient.post('/auth/login', requestData)
     
     const user = response.data
     
@@ -88,7 +103,7 @@ export const login = async (credentials) => {
       const { status } = error.response
       
       if (status === 401) {
-        throw new Error('邮箱或密码错误')
+        throw new Error('用户名或密码错误')
       }
       
       if (status === 404) {

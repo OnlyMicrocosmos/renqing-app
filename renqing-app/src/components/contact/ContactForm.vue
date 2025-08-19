@@ -1,56 +1,65 @@
 <template>
   <div class="contact-form">
-    <rq-card :header="formTitle">
+    <div class="form-card">
+      <h3>{{ formTitle }}</h3>
       <form @submit.prevent="handleSubmit">
         <div class="contact-form__group">
           <label class="contact-form__label" for="contactName">姓名 *</label>
-          <rq-input
+          <input
             id="contactName"
             v-model="form.name"
+            type="text"
             placeholder="请输入联系人姓名"
             :disabled="isSubmitting"
+            class="form-control"
           />
         </div>
         
         <div class="contact-form__group">
           <label class="contact-form__label" for="contactRelation">关系 *</label>
-          <rq-input
+          <input
             id="contactRelation"
             v-model="form.relation"
+            type="text"
             placeholder="请输入与联系人的关系，如：朋友、同事等"
             :disabled="isSubmitting"
+            class="form-control"
           />
         </div>
         
         <div class="contact-form__group">
           <label class="contact-form__label" for="contactPhone">电话</label>
-          <rq-input
+          <input
             id="contactPhone"
             v-model="form.phone"
             type="tel"
             placeholder="请输入联系人电话"
             :disabled="isSubmitting"
+            class="form-control"
           />
         </div>
         
         <div class="contact-form__group">
           <label class="contact-form__label" for="contactEmail">邮箱</label>
-          <rq-input
+          <input
             id="contactEmail"
             v-model="form.email"
             type="email"
             placeholder="请输入联系人邮箱"
             :disabled="isSubmitting"
+            class="form-control"
           />
         </div>
         
         <div class="contact-form__group">
           <label class="contact-form__label" for="contactAddress">地址</label>
-          <rq-input
+          <input
             id="contactAddress"
             v-model="form.address"
+            type="text"
             placeholder="请输入联系人地址"
             :disabled="isSubmitting"
+            class="form-control"
           />
         </div>
         
@@ -66,116 +75,125 @@
         </div>
         
         <div class="contact-form__actions">
-          <rq-button 
-            type="primary" 
+          <button 
+            type="submit"
+            class="btn btn-primary"
             :disabled="isSubmitting"
           >
             {{ isSubmitting ? '提交中...' : '提交' }}
-          </rq-button>
-          <rq-button 
-            type="default" 
+          </button>
+          <button 
+            type="button"
+            class="btn btn-secondary"
             @click="handleCancel"
             :disabled="isSubmitting"
           >
-            取消
-          </rq-button>
+            <i class="icon-close"></i> 取消
+          </button>
         </div>
       </form>
-    </rq-card>
+    </div>
   </div>
 </template>
 
-<script>
-import RQCard from '@/components/ui/RQCard.vue'
-import RQInput from '@/components/ui/RQInput.vue'
-import RQButton from '@/components/ui/RQButton.vue'
+<script setup>
+import { ref, computed, watch } from 'vue'
 
-export default {
-  name: 'ContactForm',
-  components: {
-    RQCard,
-    RQInput,
-    RQButton
+// 接收父组件传递的 contact 数据
+const props = defineProps({
+  contact: {
+    type: Object,
+    default: () => ({
+      id: null,
+      name: '',
+      relation: '',
+      phone: '',
+      email: '',
+      address: '',
+      note: ''
+    })
   },
-  props: {
-    contact: {
-      type: Object,
-      default: () => ({
-        id: null,
-        name: '',
-        relation: '',
-        phone: '',
-        email: '',
-        address: '',
-        note: ''
-      })
-    },
-    isSubmitting: {
-      type: Boolean,
-      default: false
-    }
-  },
-  data() {
-    return {
-      form: { ...this.contact }
-    }
-  },
-  computed: {
-    formTitle() {
-      return this.form.id ? '编辑联系人' : '添加联系人'
-    }
-  },
-  watch: {
-    contact: {
-      handler(newVal) {
-        this.form = { ...newVal }
-      },
-      deep: true
-    }
-  },
-  methods: {
-    handleSubmit() {
-      // 表单验证
-      if (!this.form.name || !this.form.relation) {
-        alert('请填写姓名和关系')
-        return
-      }
-      
-      // 邮箱格式验证（如果填写了邮箱）
-      if (this.form.email && !this.isValidEmail(this.form.email)) {
-        alert('请输入正确的邮箱格式')
-        return
-      }
-      
-      // 电话格式验证（如果填写了电话）
-      if (this.form.phone && !this.isValidPhone(this.form.phone)) {
-        alert('请输入正确的电话格式')
-        return
-      }
-      
-      this.$emit('submit', { ...this.form })
-    },
-    
-    handleCancel() {
-      this.$emit('cancel')
-    },
-    
-    isValidEmail(email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      return emailRegex.test(email)
-    },
-    
-    isValidPhone(phone) {
-      const phoneRegex = /^1[3-9]\d{9}$/
-      return phoneRegex.test(phone)
-    }
+  isSubmitting: {
+    type: Boolean,
+    default: false
   }
+})
+
+// 定义保存和取消事件
+const emits = defineEmits(['submit', 'cancel'])
+
+// 使用 v-model 双向绑定数据
+const form = ref({ ...props.contact })
+
+// 监听 contact 变化，同步到本地数据
+watch(() => props.contact, (newVal) => {
+  form.value = { ...newVal }
+})
+
+// 计算属性
+const formTitle = computed(() => {
+  return form.value.id ? '编辑联系人' : '添加联系人'
+})
+
+// 提交表单
+const handleSubmit = () => {
+  // 表单验证
+  if (!form.value.name || !form.value.relation) {
+    alert('请填写姓名和关系')
+    return
+  }
+  
+  // 邮箱格式验证（如果填写了邮箱）
+  if (form.value.email && !isValidEmail(form.value.email)) {
+    alert('请输入正确的邮箱格式')
+    return
+  }
+  
+  // 电话格式验证（如果填写了电话）
+  if (form.value.phone && !isValidPhone(form.value.phone)) {
+    alert('请输入正确的电话格式')
+    return
+  }
+  
+  // 发出提交事件
+  emits('submit', { ...form.value })
+}
+
+// 取消操作
+const handleCancel = () => {
+  emits('cancel')
+}
+
+// 验证邮箱格式
+const isValidEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+// 验证电话格式
+const isValidPhone = (phone) => {
+  const phoneRegex = /^1[3-9]\d{9}$/;
+  return phoneRegex.test(phone);
 }
 </script>
 
 <style scoped>
 .contact-form {
   width: 100%;
+}
+
+.form-card {
+  background: white;
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+.form-card h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: var(--dark);
+  text-align: center;
 }
 
 .contact-form__group {
@@ -187,6 +205,28 @@ export default {
   margin-bottom: var(--spacer-sm);
   font-weight: bold;
   color: var(--text-color-primary);
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color-base);
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.2);
+}
+
+.form-control:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  background-color: var(--light);
 }
 
 .contact-form__textarea {
@@ -216,14 +256,57 @@ export default {
 
 .contact-form__actions {
   display: flex;
+  flex-direction: column; /* 改为垂直排列 */
   gap: var(--spacer-md);
   justify-content: center;
   margin-top: var(--spacer-lg);
 }
 
-@media (max-width: 768px) {
+.btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--border-radius);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  font-size: 1rem;
+  width: 100%; /* 按钮宽度100% */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-dark);
+}
+
+.btn-secondary {
+  background-color: var(--light-gray);
+  color: var(--dark);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--gray);
+}
+
+/* 确保按钮在移动设备上也能正确显示 */
+@media (min-width: 768px) {
   .contact-form__actions {
-    flex-direction: column;
+    flex-direction: row; /* 在较大屏幕上改为水平排列 */
+  }
+  
+  .btn {
+    width: auto; /* 在较大屏幕上恢复自动宽度 */
   }
 }
 </style>

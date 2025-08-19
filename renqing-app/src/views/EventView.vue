@@ -52,97 +52,89 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useEventStore } from '@/stores/event.store'
 import { useContactStore } from '@/stores/contact.store'
-import EventList from '@/components/events/EventList.vue' // 确认路径正确
+import EventList from '@/components/events/EventList.vue'
+import { useEventStore } from '@/stores/event.store'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
-export default {
-  name: 'EventView',
-  components: {
-    EventList
-  },
-  setup() {
-    const eventStore = useEventStore()
-    const contactStore = useContactStore()
+const eventStore = useEventStore()
+const contactStore = useContactStore()
+const router = useRouter()
 
-    const events = ref([])
-    const contacts = ref([])
-    const loading = ref(true)
-    const error = ref(null)
+// 初始化 events 为一个空数组，避免 undefined
+const events = ref([])
+const contacts = ref([])
+const loading = ref(true)
+const error = ref(null)
 
-    const filter = ref({
-      type: '',
-      contactId: '',
-      startDate: '',
-      endDate: ''
-    })
+const filter = ref({
+  type: '',
+  contactId: '',
+  startDate: '',
+  endDate: ''
+})
 
-    onMounted(async () => {
-      try {
-        await contactStore.loadContacts()
-        contacts.value = contactStore.contacts
+onMounted(async () => {
+  try {
+    await contactStore.loadContacts()
+    contacts.value = contactStore.contacts
+
+    await eventStore.loadEvents()
+    // 确保 events.value 是一个数组
+    events.value = eventStore.events || []
+  } catch (err) {
+    error.value = err.message || '加载数据失败'
+  } finally {
+    loading.value = false
+  }
+})
+
+// 添加安全检查，防止访问 undefined 的属性
+const filteredEvents = computed(() => {
+  return events.value.filter(event => {
+    // 检查 event 是否存在且有必要的属性
+    if (!event || !event.type) {
+      return false
+    }
     
-        await eventStore.loadEvents()
-        events.value = eventStore.events
-      } catch (err) {
-        error.value = err.message || '加载数据失败'
-      } finally {
-        loading.value = false
-      }
-    })
-
-    const filteredEvents = computed(() => {
-      return events.value.filter(event => {
-        // 过滤类型
-        if (filter.value.type && event.type !== filter.value.type) {
-          return false
-        }
-        
-        // 过滤联系人
-        if (filter.value.contactId && event.contactId != filter.value.contactId) {
-          return false
-        }
-        
-        // 过滤日期范围
-        if (filter.value.startDate && event.date < filter.value.startDate) {
-          return false
-        }
-        
-        if (filter.value.endDate && event.date > filter.value.endDate) {
-          return false
-        }
-        
-        return true
-      })
-    })
-
-    const handleEdit = (event) => {
-      eventStore.setCurrentEvent(event)
+    if (filter.value.type && event.type !== filter.value.type) {
+      return false
     }
-
-    const handleDelete = async (eventId) => {
-      if (confirm('确定要删除这个事件吗？此操作不可撤销。')) {
-        const success = await eventStore.deleteEvent(eventId)
-        if (success) {
-          events.value = eventStore.events
-        }
-      }
+    if (filter.value.contactId && event.contactId != filter.value.contactId) {
+      return false
     }
+    if (filter.value.startDate && event.date < filter.value.startDate) {
+      return false
+    }
+    if (filter.value.endDate && event.date > filter.value.endDate) {
+      return false
+    }
+    return true
+  })
+})
 
-    return {
-      events,
-      contacts,
-      loading,
-      error,
-      filter,
-      filteredEvents,
-      handleEdit,
-      handleDelete
+const handleEdit = (event) => {
+  // 确保 eventStore.selectEvent 方法存在
+  if (typeof eventStore.selectEvent === 'function') {
+    console.log('selectEvent method exists, calling it with:', event);
+    eventStore.selectEvent(event)
+  } else {
+    console.error('eventStore.selectEvent is not a function');
+  }
+  
+  // 添加路由跳转逻辑，确保进入编辑页面
+  router.push(`/events/edit/${event.id}`)
+}
+
+const handleDelete = async (eventId) => {
+  if (confirm('确定要删除这个事件吗？此操作不可撤销。')) {
+    const success = await eventStore.deleteEvent(eventId)
+    if (success) {
+      events.value = eventStore.events
     }
   }
 }
-
 </script>
 
 <style scoped>

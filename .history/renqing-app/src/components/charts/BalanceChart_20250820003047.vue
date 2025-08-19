@@ -22,7 +22,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted,watch } from 'vue'
 import * as echarts from 'echarts'
 
 const props = defineProps({
@@ -41,26 +41,8 @@ let chartInstance = null
 
 // 计算是否有数据用于展示
 const hasData = computed(() => {
-  return props.data && (props.data.given > 0 || props.data.received > 0)
+  return props.data.given > 0 || props.data.received > 0
 })
-
-// ✅ 修复：确保在数据变化时重新初始化图表
-watch(
-  () => props.data,
-  () => {
-    if (hasData.value) {
-      if (chartInstance) {
-        updateChart()
-      } else {
-        initChart()
-      }
-    } else if (chartInstance) {
-      chartInstance.dispose()
-      chartInstance = null
-    }
-  },
-  { deep: true }
-)
 
 // 初始化图表
 const initChart = () => {
@@ -109,8 +91,8 @@ const initChart = () => {
           show: false
         },
         data: [
-          { value: props.data.given || 0, name: '送礼' },
-          { value: props.data.received || 0, name: '收礼' }
+          { value: props.data.given, name: '送礼' },
+          { value: props.data.received, name: '收礼' }
         ]
       }
     ]
@@ -126,12 +108,48 @@ const updateChart = () => {
   chartInstance.setOption({
     series: [{
       data: [
-        { value: props.data.given || 0, name: '送礼' },
-        { value: props.data.received || 0, name: '收礼' }
+        { value: props.data.given, name: '送礼' },
+        { value: props.data.received, name: '收礼' }
       ]
     }]
   })
 }
+
+// 监听数据变化
+watch(() => props.data, () => {
+  if (hasData.value) {
+    if (chartInstance) {
+      updateChart()
+    } else {
+      initChart()
+    }
+  } else if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
+}, { deep: true })
+
+// 监听窗口大小变化
+const handleResize = () => {
+  if (chartInstance) {
+    chartInstance.resize()
+  }
+}
+
+onMounted(() => {
+  if (hasData.value) {
+    initChart()
+  }
+  window.addEventListener('resize', handleResize)
+})
+
+// 组件卸载前清理
+onUnmounted(() => {
+  if (chartInstance) {
+    chartInstance.dispose()
+  }
+  window.removeEventListener('resize', handleResize)
+})
 </script>
 
 <style scoped>

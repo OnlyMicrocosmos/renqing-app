@@ -77,7 +77,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue' // ✅ 添加缺失的导入
 import { useEventStore } from '@/stores/event.store'
 import { formatCurrency } from '@/utils/currency'
 import BalanceChart from '@/components/charts/BalanceChart.vue'
@@ -87,9 +87,24 @@ const eventStore = useEventStore()
 const balanceTimeRange = ref('all')
 const timelineTimeRange = ref('30')
 
+// 页面加载时获取事件数据
 onMounted(async () => {
   await eventStore.loadEvents()
 })
+
+// ✅ 修复：添加对事件变化的监听
+watch(
+  () => eventStore.events,
+  async (newEvents) => {
+    console.log('Events updated in AnalysisView')
+    // 确保所有相关组件都能接收到更新
+    if (newEvents && newEvents.length > 0) {
+      // 触发重新渲染
+      await nextTick()
+    }
+  },
+  { deep: true }
+)
 
 // 过滤事件
 const filteredEvents = computed(() => {
@@ -150,48 +165,6 @@ const balanceData = computed(() => {
   return { given, received }
 })
 
-// 统计数据
-const givenTotal = computed(() => {
-  return eventStore.events
-    .filter(event => event.type === 'given')
-    .reduce((sum, event) => sum + event.value, 0)
-})
-
-const receivedTotal = computed(() => {
-  return eventStore.events
-    .filter(event => event.type === 'received')
-    .reduce((sum, event) => sum + event.value, 0)
-})
-
-const netBalance = computed(() => {
-  return receivedTotal.value - givenTotal.value
-})
-
-const netBalanceClass = computed(() => {
-  if (netBalance.value > 0) return 'positive'
-  if (netBalance.value < 0) return 'negative'
-  return 'neutral'
-})
-
-const totalEvents = computed(() => {
-  return eventStore.events.length
-})
-
-// 按关系统计数据
-const relationStats = computed(() => {
-  const stats = {}
-  
-  eventStore.events.forEach(event => {
-    const type = event.contactRelation || '其他'
-    if (!stats[type]) {
-      stats[type] = { label: type, count: 0, amount: 0 }
-    }
-    stats[type].count++
-    stats[type].amount += event.value
-  })
-  
-  return Object.values(stats).sort((a, b) => b.amount - a.amount)
-})
 </script>
 
 <style scoped>
