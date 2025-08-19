@@ -129,17 +129,49 @@ const handleLogin = async () => {
   align-items: center;
   min-height: 100vh;
   padding: 1rem;
-  background: linear-gradient(135deg, #4361ee 0%, #3f37c9 100%);
+  background: linear-gradient(to bottom, #f1f4f9, #dff1ff);
+  overflow: hidden;
+  position: relative;
+}
+
+.auth-view::before,
+.auth-view::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(150px);
+}
+
+.auth-view::before {
+  width: 600px;
+  height: 600px;
+  background: #ff359b;
+  top: -350px;
+  left: 0;
+}
+
+.auth-view::after {
+  width: 500px;
+  height: 500px;
+  background: #00d2ff;
+  bottom: -150px;
+  right: 100px;
 }
 
 .auth-container {
+  position: relative;
   width: 100%;
   max-width: 400px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 25px 45px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(5px);
   padding: 2.5rem;
   animation: fadeIn 0.5s ease;
+  z-index: 10;
 }
 
 @keyframes fadeIn {
@@ -153,14 +185,26 @@ const handleLogin = async () => {
 }
 
 .auth-header h1 {
+  position: relative;
   margin-bottom: 0.5rem;
   font-size: 1.75rem;
-  font-weight: 700;
-  color: #2b2d42;
+  font-weight: 600;
+  color: #fff;
+}
+
+.auth-header h1::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -10px;
+  width: 80px;
+  height: 4px;
+  background: #fff;
 }
 
 .auth-header p {
-  color: #6c757d;
+  color: #fff;
   margin: 0;
   font-size: 1rem;
 }
@@ -183,18 +227,27 @@ const handleLogin = async () => {
 
 .form-control {
   width: 100%;
-  padding: 0.85rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  padding: 0.85rem 1.25rem;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 35px;
   font-size: 1rem;
   outline: none;
   transition: all 0.3s ease;
   box-sizing: border-box;
+  color: #fff;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+}
+
+.form-control::placeholder {
+  color: #fff;
 }
 
 .form-control:focus {
-  border-color: #4361ee;
-  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+  border-color: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
 }
 
 .checkbox-group {
@@ -249,19 +302,18 @@ const handleLogin = async () => {
 }
 
 .btn-primary {
-  color: #fff;
-  background-color: #4361ee;
-  border-color: #4361ee;
+  color: #666;
+  background: #fff;
+  border-color: #fff;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #3a56e4;
-  border-color: #3a56e4;
+  background: #f1f1f1;
+  border-color: #f1f1f1;
 }
 
 .btn-primary:disabled {
-  background-color: #a9b9f7;
-  border-color: #a9b9f7;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
@@ -271,25 +323,26 @@ const handleLogin = async () => {
 }
 
 .error-message {
-  color: #dc3545;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
+  color: #ff7878;
+  text-align: center;
   padding: 0.75rem 1rem;
   border-radius: 8px;
   margin-bottom: 1rem;
   font-size: 0.9rem;
+  background: transparent;
+  border: 1px solid #ff7878;
 }
 
 .auth-footer {
   text-align: center;
-  color: #6c757d;
+  color: #fff;
   font-size: 0.95rem;
   padding-top: 1rem;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .auth-footer a {
-  color: #4361ee;
+  color: #fff;
   text-decoration: none;
   font-weight: 600;
   transition: all 0.2s ease;

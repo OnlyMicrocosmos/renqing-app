@@ -148,16 +148,48 @@ const handleRegister = async () => {
   align-items: center;
   min-height: 100vh;
   padding: 1rem;
-  background-color: #f8f9fa;
+  background: linear-gradient(to bottom, #f1f4f9, #dff1ff);
+  overflow: hidden;
+  position: relative;
+}
+
+.auth-view::before,
+.auth-view::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(150px);
+}
+
+.auth-view::before {
+  width: 600px;
+  height: 600px;
+  background: #ff359b;
+  top: -350px;
+  left: 0;
+}
+
+.auth-view::after {
+  width: 500px;
+  height: 500px;
+  background: #00d2ff;
+  bottom: -150px;
+  right: 100px;
 }
 
 .auth-container {
+  position: relative;
   width: 100%;
   max-width: 400px;
-  background: white;
-  border-radius: var(--border-radius);
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 25px 45px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(5px);
   padding: 2rem;
+  z-index: 10;
 }
 
 .auth-header {
@@ -166,14 +198,26 @@ const handleRegister = async () => {
 }
 
 .auth-header h1 {
+  position: relative;
   margin-bottom: 0.5rem;
   font-size: 1.75rem;
   font-weight: 600;
-  color: var(--dark);
+  color: #fff;
+}
+
+.auth-header h1::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -10px;
+  width: 80px;
+  height: 4px;
+  background: #fff;
 }
 
 .auth-header p {
-  color: var(--gray);
+  color: #fff;
   margin: 0;
 }
 
@@ -189,23 +233,32 @@ const handleRegister = async () => {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
-  color: var(--dark);
+  color: #fff;
 }
 
 .form-control {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--light-gray);
-  border-radius: var(--border-radius);
+  padding: 0.75rem 1.25rem;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 35px;
   font-size: 1rem;
   outline: none;
   transition: var(--transition);
   box-sizing: border-box;
+  color: #fff;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+}
+
+.form-control::placeholder {
+  color: #fff;
 }
 
 .form-control:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.2);
+  border-color: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 .checkbox-group {
@@ -219,6 +272,7 @@ const handleRegister = async () => {
   position: relative;
   user-select: none;
   line-height: 1.4;
+  color: #fff;
 }
 
 .checkbox-label input {
@@ -232,7 +286,7 @@ const handleRegister = async () => {
 .checkmark {
   height: 16px;
   width: 16px;
-  background-color: #eee;
+  background-color: rgba(255, 255, 255, 0.2);
   border-radius: 3px;
   margin-right: 0.5rem;
   position: relative;
@@ -240,7 +294,7 @@ const handleRegister = async () => {
 }
 
 .checkbox-label input:checked ~ .checkmark {
-  background-color: var(--primary);
+  background-color: #fff;
 }
 
 .checkmark:after {
@@ -258,14 +312,15 @@ const handleRegister = async () => {
   top: 2px;
   width: 4px;
   height: 8px;
-  border: solid white;
+  border: solid #666;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
 
 .terms-link {
-  color: var(--primary);
+  color: #fff;
   text-decoration: none;
+  font-weight: 600;
 }
 
 .terms-link:hover {
@@ -285,13 +340,15 @@ const handleRegister = async () => {
 
 .auth-footer {
   text-align: center;
-  color: var(--gray);
+  color: #fff;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .auth-footer a {
-  color: var(--primary);
+  color: #fff;
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .auth-footer a:hover {
