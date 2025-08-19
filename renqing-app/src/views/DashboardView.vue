@@ -59,22 +59,28 @@
 </template>
 
 <script setup>
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useEventStore } from '@/stores/event.store'
 import { formatCurrency } from '@/utils/currency'
 import BalanceChart from '@/components/charts/BalanceChart.vue'
 import TimelineChart from '@/components/charts/TimelineChart.vue'
 import EventList from '@/components/events/EventList.vue'
-import { nextTick } from 'vue' // ✅ 添加缺失的导入
 
 const eventStore = useEventStore()
+const isLoading = ref(true)
 
 // 页面加载时获取事件数据
 onMounted(async () => {
-  await eventStore.loadEvents()
+  try {
+    await eventStore.loadEvents()
+  } catch (error) {
+    console.error('Failed to load events:', error)
+  } finally {
+    isLoading.value = false
+  }
 })
 
-// 计算属性，用于响应事件数据变化
+// 使用 store 中的计算属性
 const balanceData = computed(() => {
   return {
     given: eventStore.totalGiven,
@@ -82,11 +88,15 @@ const balanceData = computed(() => {
   }
 })
 
-const totalBalance = computed(() => eventStore.totalBalance)
-const totalOwed = computed(() => eventStore.totalReceived)
-const totalDue = computed(() => eventStore.totalGiven)
+const recentEvents = computed(() => eventStore.recentEvents)
+
+// 修正人情值计算逻辑
+const totalBalance = computed(() => eventStore.totalReceived - eventStore.totalGiven) // 总人情值 = 收入 - 支出
+const totalOwed = computed(() => eventStore.totalReceived) // 待还人情 = 已收到的总额
+const totalDue = computed(() => eventStore.totalGiven) // 待收人情 = 已送出的总额
 
 const formattedBalance = computed(() => {
+  if (isLoading.value) return '...'
   const balance = totalBalance.value
   if (balance === 0) return formatCurrency(0)
   
@@ -94,25 +104,12 @@ const formattedBalance = computed(() => {
 })
 
 const balanceClass = computed(() => {
+  if (isLoading.value) return 'neutral'
   const balance = totalBalance.value
   if (balance > 0) return 'positive'
   if (balance < 0) return 'negative'
   return 'neutral'
 })
-
-// ✅ 修复：添加对事件变化的监听
-watch(
-  () => eventStore.events,
-  async (newEvents) => {
-    console.log('Events updated in DashboardView')
-    // 确保所有相关组件都能接收到更新
-    if (newEvents && newEvents.length > 0) {
-      // 触发重新渲染
-      await nextTick()
-    }
-  },
-  { deep: true }
-)
 </script>
 
 <style scoped>
