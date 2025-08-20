@@ -34,7 +34,7 @@
       <div v-else class="contacts-grid">
         <ContactCard 
           v-for="contact in filteredContacts" 
-          :key="contact.id" 
+          :key="contact?.id || contact?.name || Math.random()" 
           :contact="contact" 
           @edit="handleEdit"
           @delete="handleDelete"
@@ -92,13 +92,16 @@ onMounted(async () => {
 const filteredContacts = computed(() => {
   if (!searchQuery.value) {
     // 确保 contacts 是一个数组，避免 undefined
-    return contactStore.contacts || []
+    return contactStore.contacts?.filter(contact => 
+      contact && typeof contact === 'object' && contact.id !== undefined
+    ) || []
   }
   
   const query = searchQuery.value.toLowerCase()
   // 确保 contacts 是一个数组，避免 undefined
   return (contactStore.contacts || []).filter(contact => 
-    contact.name.toLowerCase().includes(query) ||
+    contact && typeof contact === 'object' && contact.id !== undefined &&
+    contact.name?.toLowerCase().includes(query) ||
     (contact.phone && contact.phone.includes(query)) ||
     (contact.relation && contact.relation.toLowerCase().includes(query))
   )
