@@ -144,6 +144,12 @@ export default {
 <style scoped>
 .contact-card {
   width: 100%;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.contact-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
 }
 
 .contact-card__header {
@@ -157,7 +163,7 @@ export default {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background-color: var(--primary-color);
+  background: linear-gradient(135deg, var(--primary-color), #6a5acd);
   color: var(--white-color);
   display: flex;
   align-items: center;
@@ -165,6 +171,7 @@ export default {
   font-size: 20px;
   font-weight: bold;
   margin-right: var(--spacer-md);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .contact-card__info {
@@ -175,17 +182,27 @@ export default {
   margin: 0 0 var(--spacer-xs);
   font-size: 18px;
   color: var(--text-color-primary);
+  font-weight: 600;
 }
 
 .contact-card__relation {
   margin: 0;
   font-size: 14px;
   color: var(--text-color-secondary);
+  background-color: var(--light);
+  padding: 2px 8px;
+  border-radius: 12px;
+  display: inline-block;
 }
 
 .contact-card__actions {
   display: flex;
   gap: var(--spacer-sm);
+}
+
+.contact-card__actions button {
+  padding: 6px 12px;
+  font-size: 14px;
 }
 
 .contact-card__body {
@@ -199,17 +216,19 @@ export default {
 .contact-card__detail-item {
   display: flex;
   margin-bottom: var(--spacer-sm);
+  padding: 4px 0;
 }
 
 .contact-card__detail-label {
   width: 60px;
-  font-weight: bold;
+  font-weight: 600;
   color: var(--text-color-primary);
 }
 
 .contact-card__detail-value {
   flex: 1;
   color: var(--text-color-secondary);
+  word-break: break-all;
 }
 
 .contact-card__summary {
@@ -219,6 +238,7 @@ export default {
   padding: var(--spacer-md);
   background-color: var(--background-color-light);
   border-radius: var(--border-radius);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .contact-card__summary-item {
@@ -230,11 +250,12 @@ export default {
   font-size: 14px;
   color: var(--text-color-secondary);
   margin-bottom: var(--spacer-xs);
+  font-weight: 500;
 }
 
 .contact-card__summary-value {
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 700;
 }
 
 .contact-card__summary-value.income {
@@ -258,10 +279,22 @@ export default {
   
   .contact-card__info {
     margin-bottom: var(--spacer-md);
+    width: 100%;
+    text-align: center;
+  }
+  
+  .contact-card__relation {
+    margin: 0 auto var(--spacer-sm);
   }
   
   .contact-card__actions {
     align-self: flex-end;
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .contact-card__summary {
+    grid-template-columns: 1fr;
   }
 }
 </style>

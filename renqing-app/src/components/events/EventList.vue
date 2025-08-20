@@ -23,8 +23,8 @@
             <span>{{ contactName(event.contactId) }}</span>
           </td>
           <td>
-            <span :class="event.amount >= 0 ? 'positive' : 'negative'">
-              {{ event.amount >= 0 ? '+' : '-' }}¥{{ event.amount.toFixed(2) }}
+            <span :class="event.type === 'given' ? 'negative' : 'positive'">
+              {{ event.type === 'given' ? '-' : '+' }}¥{{ Math.abs(event.amount).toFixed(2) }}
             </span>
           </td>
           <td>
@@ -33,16 +33,28 @@
           </td>
           <td class="actions">
             <!-- 编辑按钮 -->
-            <button class="btn btn-sm btn-primary" @click="handleEdit(event)">
+            <button 
+              class="btn btn-sm btn-primary" 
+              @click="handleEdit(event)"
+              title="编辑事件">
               <i class="icon-edit"></i>
+              <span class="btn-text">编辑</span>
             </button>
             <!-- 删除按钮 -->
-            <button class="btn btn-sm btn-danger" @click="handleDelete(event.id)">
+            <button 
+              class="btn btn-sm btn-danger" 
+              @click="handleDelete(event.id)"
+              title="删除事件">
               <i class="icon-delete"></i>
+              <span class="btn-text">删除</span>
             </button>
             <!-- 显示备注按钮 -->
-            <button class="btn btn-sm btn-info" @click="showNotes(event)">
+            <button 
+              class="btn btn-sm btn-info" 
+              @click="showNotes(event)"
+              title="查看备注">
               <i class="icon-note"></i>
+              <span class="btn-text">备注</span>
             </button>
           </td>
         </tr>
@@ -196,6 +208,7 @@ const closeModal = () => {
 .actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .btn {
@@ -204,6 +217,13 @@ const closeModal = () => {
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-text {
+  margin-left: 4px;
 }
 
 .btn-primary {

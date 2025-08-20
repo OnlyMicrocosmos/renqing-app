@@ -113,11 +113,11 @@ const filteredEvents = computed(() => {
         <p>¥{{ totalBalance }}</p>
       </div>
       <div class="card">
-        <h3>待还人情</h3>
+        <h3>已送人情</h3>
         <p>¥{{ pendingToReturn }}</p>
       </div>
       <div class="card">
-        <h3>待收人情</h3>
+        <h3>待还人情</h3>
         <p>¥{{ pendingToReceive }}</p>
       </div>
     </div>

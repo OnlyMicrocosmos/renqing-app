@@ -148,19 +148,31 @@ const closeModal = () => {
 
 .page-header {
   margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
-.page-header h1 {
+.page-header > div:first-child h1 {
   margin-bottom: 0.5rem;
+  font-size: 1.75rem;
+  color: var(--dark);
 }
 
-.page-header p {
+.page-header > div:first-child p {
   color: var(--gray);
   margin: 0;
+  font-size: 1rem;
 }
 
 .search-box {
   padding: 1rem;
+  margin-bottom: 1.5rem;
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
 }
 
 .search-input {
@@ -173,6 +185,7 @@ const closeModal = () => {
   position: absolute;
   left: 1rem;
   color: var(--gray);
+  z-index: 2;
 }
 
 .search-field {
@@ -183,6 +196,7 @@ const closeModal = () => {
   font-size: 1rem;
   outline: none;
   transition: var(--transition);
+  background-color: #fff;
 }
 
 .search-field:focus {
@@ -199,6 +213,9 @@ const closeModal = () => {
 .empty-state {
   text-align: center;
   padding: 3rem 1rem;
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
 }
 
 .empty-state i {
@@ -210,6 +227,7 @@ const closeModal = () => {
 .empty-state p {
   margin-bottom: 1.5rem;
   color: var(--gray);
+  font-size: 1.1rem;
 }
 
 /* Modal styles */
@@ -248,6 +266,7 @@ const closeModal = () => {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
+  color: var(--dark);
 }
 
 .modal-close {
@@ -262,15 +281,32 @@ const closeModal = () => {
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
+  transition: var(--transition);
 }
 
 .modal-close:hover {
   color: var(--dark);
+  background-color: var(--light);
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 2rem;
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  font-size: 1.1rem;
+}
+
+.error {
+  color: var(--danger);
 }
 
 @media (max-width: 768px) {
   .contacts-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
   
   .modal-content {
@@ -280,6 +316,11 @@ const closeModal = () => {
   
   .modal-header {
     padding: 1rem;
+  }
+  
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 </style>

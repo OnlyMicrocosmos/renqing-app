@@ -151,9 +151,9 @@ const filteredEvents = computed(() => {
     let startDate
     
     if (timelineTimeRange.value === '30') {
-      startDate = new Date(now.setDate(now.getDate() - 30))
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30)
     } else if (timelineTimeRange.value === '90') {
-      startDate = new Date(now.setDate(now.getDate() - 90))
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90)
     } else if (timelineTimeRange.value === 'year') {
       startDate = new Date(new Date().getFullYear(), 0, 1)
     }
@@ -163,8 +163,8 @@ const filteredEvents = computed(() => {
     }
   }
   
-  // 按日期排序
-  return events.sort((a, b) => new Date(a.date) - new Date(b.date))
+  // 按日期排序 - 改为降序，最近的事件在前面
+  return events.sort((a, b) => new Date(b.date) - new Date(a.date))
 })
 
 // 监听事件存储变化

@@ -45,9 +45,10 @@ const filteredData = computed(() => {
     return data.value;
   }
   
-  const now = new Date().getTime();
+  const now = new Date();
   const days = parseInt(timeRange.value);
-  const startTime = now - (days * 24 * 60 * 60 * 1000);
+  const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - days);
+  const startTime = startDate.getTime();
   
   return data.value.filter(item => item.time >= startTime);
 });
@@ -79,16 +80,13 @@ const initChart = () => {
     // 设置图表选项
     const option = {
       tooltip: {
-        trigger: 'axis',
-        axisPointer: {
-          type: 'shadow'
-        },
+        trigger: 'item',
         formatter: function(params) {
-          const event = params[0].data
+          const event = params.data;
           return `
             <div style="padding: 5px;">
               <strong>${event.name}</strong><br/>
-              ${event.typeText}: ¥${event.amount}<br/>
+              ${event.typeText}: ¥${Math.abs(event.amount)}<br/>
               日期: ${new Date(event.time).toLocaleDateString()}
             </div>
           `
@@ -100,7 +98,14 @@ const initChart = () => {
           show: false
         },
         axisLabel: {
-          formatter: '{yyyy}-{MM}-{dd}'
+          formatter: function (value) {
+            // 将时间戳转换为 MM-DD 格式
+            return echarts.format.formatTime('MM-dd', value);
+          },
+          rotate: 45,
+          margin: 20,
+          align: 'center',
+          verticalAlign: 'middle'
         }
       },
       yAxis: {
@@ -112,42 +117,43 @@ const initChart = () => {
           }
         },
         axisLabel: {
-          formatter: '{value}¥'
+          formatter: function (value) {
+            // 显示绝对值，因为负值已经在数据中处理
+            return '¥' + Math.abs(value);
+          }
         }
       },
       series: [
         {
           name: '送礼',
-          type: 'line',
+          type: 'scatter',
           data: filteredData.value.filter(d => d.type === 'given').map(d => ({
             ...d,
-            value: d.amount
+            // 对于散点图，x轴为时间戳，y轴为金额
+            value: [d.time, d.amount]
           })),
-          lineStyle: {
+          itemStyle: {
             color: '#ff6384'
           },
-          areaStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: 'rgba(255, 99, 132, 0.3)' },
-              { offset: 1, color: 'rgba(255, 99, 132, 0)' }
-            ])
+          symbolSize: function(data) {
+            // 根据金额大小调整点的大小
+            return Math.log(Math.abs(data[1]) + 1) * 3 + 5;
           }
         },
         {
           name: '收礼',
-          type: 'line',
+          type: 'scatter',
           data: filteredData.value.filter(d => d.type === 'received').map(d => ({
             ...d,
-            value: d.amount
+            // 对于散点图，x轴为时间戳，y轴为金额
+            value: [d.time, d.amount]
           })),
-          lineStyle: {
+          itemStyle: {
             color: '#36a2eb'
           },
-          areaStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: 'rgba(54, 162, 235, 0.3)' },
-              { offset: 1, color: 'rgba(54, 162, 235, 0)' }
-            ])
+          symbolSize: function(data) {
+            // 根据金额大小调整点的大小
+            return Math.log(Math.abs(data[1]) + 1) * 3 + 5;
           }
         }
       ]
@@ -172,7 +178,8 @@ watch(
         ...event,
         // 确保正确解析日期和金额字段
         time: event.date ? new Date(event.date).getTime() : Date.now(),
-        amount: event.amount || event.value || 0,
+        // 对于送礼事件，将其金额设为负数以正确反映支出
+        amount: event.type === 'given' ? -(event.amount || event.value || 0) : (event.amount || event.value || 0),
         name: event.title || event.name || event.description || '未知事件',
         typeText: typeText,
         type: event.type
