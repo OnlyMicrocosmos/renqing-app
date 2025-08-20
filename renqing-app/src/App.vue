@@ -123,7 +123,6 @@ import { useEventStore } from '@/stores/event.store'
 import dateUtil from '@/utils/date.js'
 
 // 导入默认头像图片 - 使用正确的路径
-import defaultAvatar from '@/assets/images/default-avatar.png' // 修正路径
 
 const router = useRouter()
 const route = useRoute()
@@ -137,7 +136,7 @@ const loading = ref(false)
 // 计算属性
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const username = computed(() => authStore.fullName || authStore.user?.username || '用户')
-const userAvatar = computed(() => authStore.user?.avatar || defaultAvatar)
+const userAvatar = computed(() => authStore.user?.avatar || null)
 const currentYear = computed(() => new Date().getFullYear())
 
 // 获取主导航路由

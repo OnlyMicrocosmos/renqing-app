@@ -20,5 +20,10 @@ export default defineConfig({
     host: 'localhost',
     port: 3000,
     open: true // 自动打开浏览器
-  }
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets'
+  },
+  base: './' // 使用相对路径以支持 GitHub Pages 等静态托管
 })
