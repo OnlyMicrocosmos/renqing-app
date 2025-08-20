@@ -145,11 +145,14 @@ export default {
 .contact-card {
   width: 100%;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: linear-gradient(135deg, var(--background-color-light) 0%, var(--white-color) 100%);
+  border-radius: var(--border-radius);
+  padding: 1px;
 }
 
 .contact-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
 .contact-card__header {
@@ -157,6 +160,8 @@ export default {
   align-items: center;
   padding: var(--spacer-md);
   border-bottom: 1px solid var(--border-color-base);
+  background: linear-gradient(to right, var(--primary-color-light), var(--white-color));
+  border-radius: calc(var(--border-radius) - 1px) calc(var(--border-radius) - 1px) 0 0;
 }
 
 .contact-card__avatar {
@@ -207,6 +212,7 @@ export default {
 
 .contact-card__body {
   padding: var(--spacer-md);
+  background-color: var(--white-color);
 }
 
 .contact-card__detail {
@@ -236,9 +242,10 @@ export default {
   grid-template-columns: repeat(3, 1fr);
   gap: var(--spacer-md);
   padding: var(--spacer-md);
-  background-color: var(--background-color-light);
+  background: linear-gradient(135deg, var(--background-color-light) 0%, var(--white-color) 100%);
   border-radius: var(--border-radius);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-color-light);
 }
 
 .contact-card__summary-item {
