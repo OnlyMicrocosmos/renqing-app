@@ -72,6 +72,8 @@
 </template>
 
 <script>
+import { mapState } from 'pinia'
+import { useEventStore } from '@/stores/event.store'
 import RQCard from '@/components/ui/RQCard.vue'
 import RQButton from '@/components/ui/RQButton.vue'
 
@@ -98,22 +100,27 @@ export default {
     }
   },
   computed: {
+    ...mapState(useEventStore, ['events']),
+    
     contactInitial() {
       return this.contact.name ? this.contact.name.charAt(0) : '?'
     },
     
+    contactEvents() {
+      // 从事件存储中过滤出与当前联系人相关的事件
+      return this.events.filter(event => event.contactId === this.contact.id)
+    },
+    
     totalExpense() {
-      if (!this.contact.events) return 0
-      return this.contact.events
-        .filter(event => event.type === 'expense')
+      return this.contactEvents
+        .filter(event => event.type === 'given')
         .reduce((sum, event) => sum + (event.amount || 0), 0)
         .toFixed(2)
     },
     
     totalIncome() {
-      if (!this.contact.events) return 0
-      return this.contact.events
-        .filter(event => event.type === 'income')
+      return this.contactEvents
+        .filter(event => event.type === 'received')
         .reduce((sum, event) => sum + (event.amount || 0), 0)
         .toFixed(2)
     },
@@ -206,22 +213,27 @@ export default {
 }
 
 .contact-card__summary {
-  border-top: 1px solid var(--border-color-base);
-  padding-top: var(--spacer-md);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacer-md);
+  padding: var(--spacer-md);
+  background-color: var(--background-color-light);
+  border-radius: var(--border-radius);
 }
 
 .contact-card__summary-item {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: var(--spacer-sm);
+  text-align: center;
 }
 
 .contact-card__summary-label {
-  font-weight: bold;
-  color: var(--text-color-primary);
+  display: block;
+  font-size: 14px;
+  color: var(--text-color-secondary);
+  margin-bottom: var(--spacer-xs);
 }
 
 .contact-card__summary-value {
+  font-size: 18px;
   font-weight: bold;
 }
 

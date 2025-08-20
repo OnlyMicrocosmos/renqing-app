@@ -44,27 +44,14 @@ const hasData = computed(() => {
   return props.data && (props.data.given > 0 || props.data.received > 0)
 })
 
-// ✅ 修复：确保在数据变化时重新初始化图表
-watch(
-  () => props.data,
-  () => {
-    if (hasData.value) {
-      if (chartInstance) {
-        updateChart()
-      } else {
-        initChart()
-      }
-    } else if (chartInstance) {
-      chartInstance.dispose()
-      chartInstance = null
-    }
-  },
-  { deep: true }
-)
-
 // 初始化图表
 const initChart = () => {
   if (!chartEl.value || !hasData.value) return
+  
+  // 如果已有实例，先销毁
+  if (chartInstance) {
+    chartInstance.dispose()
+  }
   
   chartInstance = echarts.init(chartEl.value)
   
@@ -123,15 +110,53 @@ const initChart = () => {
 const updateChart = () => {
   if (!chartInstance || !hasData.value) return
   
-  chartInstance.setOption({
+  const option = {
     series: [{
       data: [
         { value: props.data.given || 0, name: '送礼' },
         { value: props.data.received || 0, name: '收礼' }
       ]
     }]
-  })
+  }
+  
+  chartInstance.setOption(option)
 }
+
+// 监听数据变化
+watch(
+  () => props.data,
+  (newData) => {
+    if (hasData.value) {
+      if (chartInstance) {
+        updateChart()
+      } else {
+        initChart()
+      }
+    } else if (chartInstance) {
+      chartInstance.dispose()
+      chartInstance = null
+    }
+  },
+  { deep: true, immediate: true }
+)
+
+// 组件挂载时初始化图表
+onMounted(() => {
+  // 确保 DOM 已渲染后再初始化
+  setTimeout(() => {
+    if (hasData.value) {
+      initChart()
+    }
+  }, 0)
+})
+
+// 组件卸载前销毁图表实例
+onBeforeUnmount(() => {
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
+})
 </script>
 
 <style scoped>

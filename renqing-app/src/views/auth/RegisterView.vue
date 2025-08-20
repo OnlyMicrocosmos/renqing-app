@@ -225,6 +225,10 @@ const handleRegister = async () => {
   margin-bottom: 1.5rem;
 }
 
+.auth-form .btn {
+    color: #000; /* 修改按钮文本颜色为黑色 */
+}
+
 .form-group {
   margin-bottom: 1.5rem;
 }
@@ -284,17 +288,24 @@ const handleRegister = async () => {
 }
 
 .checkmark {
-  height: 16px;
-  width: 16px;
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-  margin-right: 0.5rem;
+  height: 18px;
+  width: 18px;
+  background-color: #4CAF50; /* 绿色实心背景 */
+  border: 1px solid #4CAF50; /* 绿色边框 */
+  border-radius: 4px;
+  margin-right: 1rem; /* 与文本的距离 */
   position: relative;
   flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.checkbox-label:hover input ~ .checkmark {
+  background-color: #45a049; /* 悬停时的背景色 */
 }
 
 .checkbox-label input:checked ~ .checkmark {
-  background-color: #fff;
+  background-color: #4CAF50; /* 绿色背景 */
+  border-color: #4CAF50; /* 绿色边框 */
 }
 
 .checkmark:after {
@@ -308,11 +319,11 @@ const handleRegister = async () => {
 }
 
 .checkbox-label .checkmark:after {
-  left: 5px;
+  left: 6px;
   top: 2px;
-  width: 4px;
-  height: 8px;
-  border: solid #666;
+  width: 5px;
+  height: 10px;
+  border: solid #fff; /* 白色对勾 */
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
@@ -349,6 +360,7 @@ const handleRegister = async () => {
   color: #fff;
   text-decoration: none;
   font-weight: 600;
+  transition: all 0.2s ease;
 }
 
 .auth-footer a:hover {

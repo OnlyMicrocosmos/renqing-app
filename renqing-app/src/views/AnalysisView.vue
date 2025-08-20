@@ -17,7 +17,7 @@
           </select>
         </div>
       </div>
-      <BalanceChart :data="balanceData" />
+      <BalanceChart :data="chartData" />
     </div>
 
     <div class="card mt-3">
@@ -43,11 +43,11 @@
         <div class="stats-grid">
           <div class="stat-item">
             <div class="stat-label">送礼总额</div>
-            <div class="stat-value negative">{{ formatCurrency(givenTotal) }}</div>
+            <div class="stat-value negative">{{ formatCurrency(totalGiven) }}</div>
           </div>
           <div class="stat-item">
             <div class="stat-label">收礼总额</div>
-            <div class="stat-value positive">{{ formatCurrency(receivedTotal) }}</div>
+            <div class="stat-value positive">{{ formatCurrency(totalReceived) }}</div>
           </div>
           <div class="stat-item">
             <div class="stat-label">净收支</div>
@@ -77,94 +77,110 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue' // ✅ 添加缺失的导入
+import { ref, computed, onMounted, watch } from 'vue'
 import { useEventStore } from '@/stores/event.store'
-import { formatCurrency } from '@/utils/currency'
 import BalanceChart from '@/components/charts/BalanceChart.vue'
 import TimelineChart from '@/components/charts/TimelineChart.vue'
+import { formatCurrency } from '@/utils/currency'
 
+// 从事件存储中获取数据
 const eventStore = useEventStore()
+
+// 时间范围过滤器
 const balanceTimeRange = ref('all')
 const timelineTimeRange = ref('30')
 
-// 页面加载时获取事件数据
-onMounted(async () => {
-  await eventStore.loadEvents()
+// 响应式数据：总收礼金额、总送礼金额
+const totalReceived = computed(() => {
+  return eventStore.events
+    .filter(event => event.type === 'received')
+    .reduce((sum, event) => sum + (event.amount || 0), 0)
 })
 
-// ✅ 修复：添加对事件变化的监听
+const totalGiven = computed(() => {
+  return eventStore.events
+    .filter(event => event.type === 'given')
+    .reduce((sum, event) => sum + (event.amount || 0), 0)
+})
+
+// 图表数据
+const chartData = computed(() => ({
+  received: totalReceived.value,
+  given: totalGiven.value
+}))
+
+// 净收支
+const netBalance = computed(() => totalReceived.value - totalGiven.value)
+
+// 净收支样式类
+const netBalanceClass = computed(() => {
+  if (netBalance.value > 0) return 'positive'
+  if (netBalance.value < 0) return 'negative'
+  return ''
+})
+
+// 事件总数
+const totalEvents = computed(() => eventStore.events.length)
+
+// 按关系统计
+const relationStats = computed(() => {
+  const stats = {}
+  eventStore.events.forEach(event => {
+    const relation = event.contact?.relation || '未知'
+    if (!stats[relation]) {
+      stats[relation] = {
+        label: relation,
+        count: 0,
+        amount: 0
+      }
+    }
+    stats[relation].count++
+    stats[relation].amount += event.amount || 0
+  })
+  
+  return Object.values(stats)
+})
+
+// 过滤后的时间线事件
+const filteredEvents = computed(() => {
+  let events = [...eventStore.events]
+  
+  // 按时间过滤
+  if (timelineTimeRange.value !== 'all') {
+    const now = new Date()
+    let startDate
+    
+    if (timelineTimeRange.value === '30') {
+      startDate = new Date(now.setDate(now.getDate() - 30))
+    } else if (timelineTimeRange.value === '90') {
+      startDate = new Date(now.setDate(now.getDate() - 90))
+    } else if (timelineTimeRange.value === 'year') {
+      startDate = new Date(new Date().getFullYear(), 0, 1)
+    }
+    
+    if (startDate) {
+      events = events.filter(event => new Date(event.date) >= startDate)
+    }
+  }
+  
+  // 按日期排序
+  return events.sort((a, b) => new Date(a.date) - new Date(b.date))
+})
+
+// 监听事件存储变化
 watch(
   () => eventStore.events,
-  async (newEvents) => {
-    console.log('Events updated in AnalysisView')
-    // 确保所有相关组件都能接收到更新
-    if (newEvents && newEvents.length > 0) {
-      // 触发重新渲染
-      await nextTick()
-    }
+  () => {
+    // 当事件发生变化时，组件会自动重新计算相关值
+    console.log('Events updated, recalculating stats...')
   },
   { deep: true }
 )
 
-// 过滤事件
-const filteredEvents = computed(() => {
-  const now = new Date()
-  let startDate = new Date(0) // 默认从最早开始
-  let endDate = new Date() // 默认到当前
-  
-  switch (timelineTimeRange.value) {
-    case '30':
-      startDate = new Date(now.setDate(now.getDate() - 30))
-      break
-    case '90':
-      startDate = new Date(now.setDate(now.getDate() - 90))
-      break
-    case 'year':
-      startDate = new Date(now.getFullYear(), 0, 1)
-      break
-  }
-  
-  return eventStore.events.filter(event => {
-    const eventDate = new Date(event.date)
-    return eventDate >= startDate && eventDate <= endDate
-  })
+onMounted(() => {
+  // 加载初始数据
+  eventStore.loadEvents()
 })
-
-// 平衡数据
-const balanceData = computed(() => {
-  let given = 0
-  let received = 0
-  
-  const now = new Date()
-  let startDate = new Date(0)
-  
-  switch (balanceTimeRange.value) {
-    case 'year':
-      startDate = new Date(now.getFullYear(), 0, 1)
-      break
-    case 'quarter':
-      const quarter = Math.floor(now.getMonth() / 3)
-      startDate = new Date(now.getFullYear(), quarter * 3, 1)
-      break
-    case 'month':
-      startDate = new Date(now.getFullYear(), now.getMonth(), 1)
-      break
-  }
-  
-  eventStore.events.forEach(event => {
-    const eventDate = new Date(event.date)
-    if (eventDate >= startDate) {
-      if (event.type === 'given') {
-        given += event.value
-      } else {
-        received += event.value
-      }
-    }
-  })
-  
-  return { given, received }
-})
-
 </script>
 
 <style scoped>
@@ -183,6 +199,12 @@ const balanceData = computed(() => {
 .page-header p {
   color: var(--gray);
   margin: 0;
+}
+
+.card-header.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .time-filter {
@@ -237,6 +259,12 @@ const balanceData = computed(() => {
 
 .stat-value.negative {
   color: var(--danger);
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
 }
 
 .relation-stats {

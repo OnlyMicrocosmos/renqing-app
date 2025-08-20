@@ -22,10 +22,9 @@
 <script setup>
 import { ref, watch, onMounted, onBeforeUnmount, computed, nextTick } from 'vue'
 import * as echarts from 'echarts'
-import { useEventStore } from '@/stores/event.store' // ✅ 添加缺失的导入
 
 const chart = ref(null)
-const data = ref([]) // 初始化为空数组，避免 undefined
+const data = ref([])
 const chartEl = ref(null)
 
 const props = defineProps({
@@ -64,7 +63,7 @@ const color = (type) => {
   }
 }
 
-// ✅ 修复：定义 initChart 函数并初始化 ECharts 实例
+// 初始化 ECharts 实例
 const initChart = () => {
   if (!chartEl.value || !hasData.value) return
   
@@ -160,54 +159,42 @@ const initChart = () => {
   }
 }
 
-// ✅ 修复：确保在数据变化时重新初始化图表
+// 监听事件数据变化
 watch(
   () => props.events,
   (newEvents) => {
     if (!newEvents || !Array.isArray(newEvents)) return
 
+    // 修复数据处理逻辑，确保正确映射事件数据
     data.value = newEvents.map(event => {
       const typeText = event.type === 'given' ? '送礼' : event.type === 'received' ? '收礼' : '其他'
       return {
         ...event,
+        // 确保正确解析日期和金额字段
         time: event.date ? new Date(event.date).getTime() : Date.now(),
-        amount: event.value || 0,
-        name: event.title || event.name || '未知事件',
-        typeText: typeText
+        amount: event.amount || event.value || 0,
+        name: event.title || event.name || event.description || '未知事件',
+        typeText: typeText,
+        type: event.type
       }
     })
 
-    // ✅ 使用 nextTick 确保 DOM 更新后才初始化图表
+    // 使用 nextTick 确保 DOM 更新后才初始化图表
     nextTick(() => {
       initChart()
     })
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 )
 
+// 监听时间范围变化
 watch(timeRange, () => {
   initChart()
 })
 
-// ✅ 修复：确保在组件挂载时获取最新数据
+// 组件挂载时初始化
 onMounted(() => {
-  // 确保在组件挂载时获取最新的事件数据
-  if (props.events.length === 0) {
-    // 如果传入的事件为空，尝试从 store 获取
-    const eventStore = useEventStore()
-    data.value = eventStore.events.map(event => {
-      const typeText = event.type === 'given' ? '送礼' : event.type === 'received' ? '收礼' : '其他'
-      return {
-        ...event,
-        time: event.date ? new Date(event.date).getTime() : Date.now(),
-        amount: event.value || 0,
-        name: event.title || event.name || '未知事件',
-        typeText: typeText
-      }
-    })
-  }
-  
-  // ✅ 使用 nextTick 确保 DOM 渲染完成后再初始化图表
+  // 使用 nextTick 确保 DOM 渲染完成后再初始化图表
   nextTick(() => {
     initChart()
   })
@@ -219,6 +206,7 @@ onMounted(() => {
   })
 })
 
+// 组件卸载前清理
 onBeforeUnmount(() => {
   if (chart.value) {
     try {

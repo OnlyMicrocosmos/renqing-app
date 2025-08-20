@@ -3,6 +3,7 @@ import App from './App.vue'
 import router from './router'
 import { createPinia } from 'pinia'
 import { useAuthStore } from './stores/auth.store'
+import './assets/styles/main.css' // 引入全局样式文件
 
 // 创建应用实例
 const app = createApp(App)

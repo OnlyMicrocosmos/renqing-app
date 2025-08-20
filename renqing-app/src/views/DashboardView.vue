@@ -1,157 +1,175 @@
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue'
+import { useEventStore } from '@/stores/event.store'
+import { useContactStore } from '@/stores/contact.store'
+import { useAuthStore } from '@/stores/auth.store'
+import { nextTick } from 'vue'
+
+// 引入图表组件
+import BalanceChart from '@/components/charts/BalanceChart.vue'
+import TimelineChart from '@/components/charts/TimelineChart.vue'
+
+const eventStore = useEventStore()
+const contactStore = useContactStore()
+const authStore = useAuthStore()
+
+// 加载事件数据
+const loadEvents = async () => {
+  await eventStore.loadEvents()
+}
+
+// 初始化数据
+onMounted(async () => {
+  await loadEvents()
+  // 确保 DOM 渲染完成后再初始化图表
+  await nextTick()
+})
+
+// 监听 events 变化，触发图表重绘
+watch(
+  () => eventStore.events,
+  (newEvents) => {
+    if (newEvents.length > 0) {
+      // 触发图表更新逻辑（可由子组件内部处理）
+      console.log('事件数据已更新:', newEvents)
+    }
+  },
+  { deep: true }
+)
+
+// 计算总人情值
+const totalReceived = computed(() => {
+  return eventStore.events
+    .filter(event => event.type === 'received')
+    .reduce((sum, event) => sum + (event.amount || 0), 0)
+})
+
+const totalGiven = computed(() => {
+  return eventStore.events
+    .filter(event => event.type === 'given')
+    .reduce((sum, event) => sum + (event.amount || 0), 0)
+})
+
+const totalBalance = computed(() => {
+  return totalReceived.value - totalGiven.value
+})
+
+// 图表数据
+const chartData = computed(() => ({
+  received: totalReceived.value,
+  given: totalGiven.value
+}))
+
+// 待还人情（送出但未收回）
+const pendingToReturn = computed(() => {
+  return eventStore.events
+    .filter(event => event.type === 'given' && !event.isReturned)
+    .reduce((sum, event) => sum + (event.amount || 0), 0)
+})
+
+// 待收人情（收到但未归还）
+const pendingToReceive = computed(() => {
+  return eventStore.events
+    .filter(event => event.type === 'received' && !event.isReturned)
+    .reduce((sum, event) => sum + (event.amount || 0), 0)
+})
+
+// 时间线图表数据过滤
+const timelineTimeRange = ref('last30days')
+
+const filteredEvents = computed(() => {
+  const now = new Date()
+  const cutoffDate = new Date(now)
+  switch (timelineTimeRange.value) {
+    case 'last30days':
+      cutoffDate.setDate(now.getDate() - 30)
+      break
+    case 'last90days':
+      cutoffDate.setDate(now.getDate() - 90)
+      break
+    case 'thisYear':
+      cutoffDate.setFullYear(now.getFullYear() - 1)
+      break
+    default:
+      return eventStore.events
+  }
+  
+  return eventStore.events.filter(event => {
+    const eventDate = new Date(event.date)
+    return eventDate >= cutoffDate
+  })
+})
+</script>
+
 <template>
-  <div class="dashboard-view">
-    <div class="page-header">
-      <h1>仪表盘</h1>
-      <p>您的人情往来概览</p>
-    </div>
+  <div class="dashboard">
+    <h1>仪表盘</h1>
+    <p>您的人情往来概览</p>
 
-    <div class="summary-cards grid-3">
+    <!-- 概览卡片 -->
+    <div class="cards">
       <div class="card">
-        <div class="card-header">
-          <h3>总人情值</h3>
-          <i class="icon-scale"></i>
-        </div>
-        <div class="card-value" :class="balanceClass">
-          {{ formattedBalance }}
-        </div>
+        <h3>总人情值</h3>
+        <p>¥{{ totalBalance }}</p>
       </div>
-      
       <div class="card">
-        <div class="card-header">
-          <h3>待还人情</h3>
-          <i class="icon-gift"></i>
-        </div>
-        <div class="card-value negative">
-          {{ formatCurrency(totalOwed) }}
-        </div>
+        <h3>待还人情</h3>
+        <p>¥{{ pendingToReturn }}</p>
       </div>
-      
       <div class="card">
-        <div class="card-header">
-          <h3>待收人情</h3>
-          <i class="icon-hand-coin"></i>
-        </div>
-        <div class="card-value positive">
-          {{ formatCurrency(totalDue) }}
-        </div>
+        <h3>待收人情</h3>
+        <p>¥{{ pendingToReceive }}</p>
       </div>
     </div>
 
-    <div class="grid-2 mt-3">
-      <div class="card">
-        <BalanceChart :data="balanceData" />
+    <!-- 图表区域 -->
+    <div class="charts">
+      <div class="chart-container">
+        <h3>人情收支平衡</h3>
+        <BalanceChart :data="chartData" />
       </div>
-      <div class="card">
-        <TimelineChart :events="recentEvents" />
+      <div class="chart-container">
+        <h3>人情事件时间线</h3>
+        <div class="time-range">
+          <select v-model="timelineTimeRange">
+            <option value="last30days">最近30天</option>
+            <option value="last90days">最近90天</option>
+            <option value="thisYear">今年</option>
+          </select>
+        </div>
+        <TimelineChart :events="filteredEvents" />
       </div>
-    </div>
-
-    <div class="card mt-3">
-      <div class="card-header flex-between">
-        <h3>最近事件</h3>
-        <router-link to="/events" class="btn btn-text">
-          查看全部 <i class="icon-arrow-right"></i>
-        </router-link>
-      </div>
-      <EventList :events="recentEvents" />
     </div>
   </div>
 </template>
 
-<script setup>
-import { computed, onMounted, ref } from 'vue'
-import { useEventStore } from '@/stores/event.store'
-import { formatCurrency } from '@/utils/currency'
-import BalanceChart from '@/components/charts/BalanceChart.vue'
-import TimelineChart from '@/components/charts/TimelineChart.vue'
-import EventList from '@/components/events/EventList.vue'
-
-const eventStore = useEventStore()
-const isLoading = ref(true)
-
-// 页面加载时获取事件数据
-onMounted(async () => {
-  try {
-    await eventStore.loadEvents()
-  } catch (error) {
-    console.error('Failed to load events:', error)
-  } finally {
-    isLoading.value = false
-  }
-})
-
-// 使用 store 中的计算属性
-const balanceData = computed(() => {
-  return {
-    given: eventStore.totalGiven,
-    received: eventStore.totalReceived
-  }
-})
-
-const recentEvents = computed(() => eventStore.recentEvents)
-
-// 修正人情值计算逻辑
-const totalBalance = computed(() => eventStore.totalReceived - eventStore.totalGiven) // 总人情值 = 收入 - 支出
-const totalOwed = computed(() => eventStore.totalReceived) // 待还人情 = 已收到的总额
-const totalDue = computed(() => eventStore.totalGiven) // 待收人情 = 已送出的总额
-
-const formattedBalance = computed(() => {
-  if (isLoading.value) return '...'
-  const balance = totalBalance.value
-  if (balance === 0) return formatCurrency(0)
-  
-  return (balance > 0 ? '+' : '') + formatCurrency(balance)
-})
-
-const balanceClass = computed(() => {
-  if (isLoading.value) return 'neutral'
-  const balance = totalBalance.value
-  if (balance > 0) return 'positive'
-  if (balance < 0) return 'negative'
-  return 'neutral'
-})
-</script>
-
 <style scoped>
-.dashboard-view {
-  padding-bottom: 2rem;
+.dashboard {
+  padding: 20px;
+  background-color: #f5f7fa;
 }
-
-.summary-cards {
-  margin-bottom: 1.5rem;
-}
-
-.card-header {
+.cards {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
+  gap: 20px;
+  margin-bottom: 20px;
 }
-
-.card-header h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--gray);
-  margin: 0;
+.card {
+  flex: 1;
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
-
-.card-header i {
-  font-size: 1.5rem;
-  color: var(--primary);
+.chart-container {
+  flex: 1;
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
 }
-
-.card-value {
-  font-size: 1.8rem;
-  font-weight: 700;
-}
-
-@media (max-width: 768px) {
-  .grid-2 {
-    grid-template-columns: 1fr;
-  }
-  
-  .summary-cards {
-    grid-template-columns: 1fr;
-  }
+.time-range {
+  margin-bottom: 10px;
+  text-align: right;
 }
 </style>

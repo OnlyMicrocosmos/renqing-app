@@ -231,7 +231,7 @@ export const useEventStore = defineStore('event', {
     totalGiven: (state) => {
       return state.events
         .filter(e => e.type === 'given')
-        .reduce((sum, e) => sum + (e.value || 0), 0)
+        .reduce((sum, e) => sum + (e.amount || 0), 0)  // 修复：使用 amount 字段而不是 value
     },
     
     /**
@@ -241,7 +241,7 @@ export const useEventStore = defineStore('event', {
     totalReceived: (state) => {
       return state.events
         .filter(e => e.type === 'received')
-        .reduce((sum, e) => sum + (e.value || 0), 0)
+        .reduce((sum, e) => sum + (e.amount || 0), 0)  // 修复：使用 amount 字段而不是 value
     },
     
     /**
@@ -251,8 +251,8 @@ export const useEventStore = defineStore('event', {
     totalBalance: (state) => {
       return state.events.reduce((total, event) => {
         return event.type === 'received' ? 
-          total + (event.value || 0) : 
-          total - (event.value || 0)
+          total + (event.amount || 0) :  // 修复：使用 amount 字段而不是 value
+          total - (event.amount || 0)    // 修复：使用 amount 字段而不是 value
       }, 0)
     },
 

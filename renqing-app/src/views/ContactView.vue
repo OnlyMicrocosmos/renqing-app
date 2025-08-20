@@ -62,10 +62,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useContactStore } from '@/stores/contact.store'
+import { useEventStore } from '@/stores/event.store'
 import ContactForm from '@/components/contact/ContactForm.vue'
 import ContactCard from '@/components/contact/ContactCard.vue'
 
 const contactStore = useContactStore()
+const eventStore = useEventStore()
 const searchQuery = ref('')
 const loading = ref(true)
 const error = ref(null)
@@ -75,9 +77,13 @@ const editingContact = ref(null)
 
 onMounted(async () => {
   try {
-    await contactStore.loadContacts()
+    // 同时加载联系人和事件数据
+    await Promise.all([
+      contactStore.loadContacts(),
+      eventStore.loadEvents()
+    ])
   } catch (err) {
-    error.value = err.message || '加载联系人失败'
+    error.value = err.message || '加载数据失败'
   } finally {
     loading.value = false
   }
